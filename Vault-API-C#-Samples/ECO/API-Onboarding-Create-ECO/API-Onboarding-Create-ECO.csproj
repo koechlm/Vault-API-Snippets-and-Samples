@@ -4,49 +4,50 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{99D6FAF8-E82A-429E-95EF-4FF03FAE6C0C}</ProjectGuid>
+    <ProjectGuid>{29823879-1C23-414D-A0E0-107611B91B27}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>API_Snippets___Samples</RootNamespace>
+    <RootNamespace>API_Onboarding_Create_ECO</RootNamespace>
     <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <TargetFrameworkProfile />
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>x64</PlatformTarget>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
+    <OutputPath>bin\x64\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>full</DebugType>
     <PlatformTarget>x64</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <LangVersion>7.3</LangVersion>
     <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Autodesk.Connectivity.WebServices">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\Autodesk.Connectivity.WebServices.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.Connectivity.WebServices.dll</HintPath>
     </Reference>
     <Reference Include="Autodesk.Connectivity.WebServices.WCF">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\Autodesk.Connectivity.WebServices.WCF.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.Connectivity.WebServices.WCF.dll</HintPath>
     </Reference>
     <Reference Include="Autodesk.DataManagement.Client.Framework">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.dll</HintPath>
     </Reference>
     <Reference Include="Autodesk.DataManagement.Client.Framework.Vault">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.Vault.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.Vault.dll</HintPath>
     </Reference>
     <Reference Include="Autodesk.Connectivity.LicenseWrapper">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\\Autodesk.Connectivity.LicenseWrapper.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\\Autodesk.Connectivity.LicenseWrapper.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -65,15 +66,15 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\AdskLicensingSDK_8.dll">
-      <Link>AdskLicensingSDK_8.dll</Link>
+    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\AdskLicensingSDK_9.dll">
+      <Link>AdskLicensingSDK_9.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\AdskIdentitySDK.dll">
+    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\AdskIdentitySDK.dll">
       <Link>AdskIdentitySDK.dll</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2025 SDK\bin\x64\AdskIdentitySDK.config">
+    <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\AdskIdentitySDK.config">
       <Link>AdskIdentitySDK.config</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

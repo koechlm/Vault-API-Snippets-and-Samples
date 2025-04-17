@@ -30,10 +30,12 @@
     <Folder Include="Job\" />
     <Folder Include="Items\" />
     <Folder Include="Admin\" />
+    <Folder Include="ECO\" />
     <Folder Include="_Templates\" />
     <Folder Include="Search\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ECO\Vault-API-Sample-Create-ECO.ps1" />
     <Compile Include="Job\Vault-API-Sample-ActivateScheduledJobForQueue.ps1" />
     <Compile Include="Job\Vault-API-Sample-AddJobExtractItemData.ps1" />
     <Compile Include="Job\Vault-API-Sample-AddJobToQueue.ps1" />
