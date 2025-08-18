@@ -40,18 +40,22 @@ namespace API_ConsoleApp_PromoteFileToItem
                 VDF.Vault.Currency.Entities.FileIteration mPrimFileIteration = new VDF.Vault.Currency.Entities.FileIteration(mConn, mPrimFile);
 
                 // Get the secondary file iteration to assign/update item; addjust the file path as needed
-                string mSecondaryFileName = "$/Designs/Test.doc";
+                string mSecondaryFileName = "$/Designs/Test2.ipt";
                 File mSecFile = mVault.DocumentService.FindLatestFilesByPaths((new List<string> { mSecondaryFileName }).ToArray()).FirstOrDefault();
                 VDF.Vault.Currency.Entities.FileIteration mSecFileIteration = new VDF.Vault.Currency.Entities.FileIteration(mConn, mSecFile);
 
                 ItemsAndFiles mPromoteResult = null;
                 ItemAssignAll itemAssignAll = ItemAssignAll.No;
 
+                Item[] mUpdatedItems = null;
+                Item mCurrentItem = null;
+
                 bool mPromoteFailed = false;
 
                 List<long> mFileIdsToPromote = new List<long>();
+                // add the primary file iteration id last as the array will process from end to start
+                mFileIdsToPromote.Add(mSecFileIteration.EntityIterationId);
                 mFileIdsToPromote.Add(mPrimFileIteration.EntityIterationId);
-
 
                 // Promote the files to item(s)
                 try
@@ -74,7 +78,7 @@ namespace API_ConsoleApp_PromoteFileToItem
                     {
                         try
                         {
-                            mVault.ItemService.PromoteComponents(mTimeStamp, mPromoteOrderResults.NonPrimaryArray);
+                            mVault.ItemService.PromoteComponentLinks(mPromoteOrderResults.NonPrimaryArray);
                         }
                         catch (Exception)
                         {
@@ -90,8 +94,8 @@ namespace API_ConsoleApp_PromoteFileToItem
                             mPromoteResult = mVault.ItemService.GetPromoteComponentsResults(mTimeStamp);
                             if (mPromoteResult.ItemRevArray.FirstOrDefault().Locked != true)
                             {
-                                Item[] mUpdatedItems = mPromoteResult.ItemRevArray;
-                                Item mCurrentItem = mUpdatedItems.FirstOrDefault();
+                                mUpdatedItems = mPromoteResult.ItemRevArray;
+                                mCurrentItem = mUpdatedItems.FirstOrDefault();
                                 List<Item> mItemsToUpdate = new List<Item>();
                                 mItemsToUpdate.Add(mCurrentItem);
                                 mVault.ItemService.UpdateAndCommitItems(mItemsToUpdate.ToArray());
@@ -104,16 +108,41 @@ namespace API_ConsoleApp_PromoteFileToItem
                     }
                     catch (Exception)
                     {
-
+                        // restrictions like error code 1387
                     }
                 }
                 catch (Exception)
                 {
-
+                    if (mUpdatedItems != null && mUpdatedItems.Length > 0)
+                    {
+                        List<long> mItemIds = new List<long>();
+                        foreach (Item mItem in mUpdatedItems)
+                        {
+                            mItemIds.Add(mItem.Id);
+                        }
+                        mVault.ItemService.UndoEditItems(mItemIds.ToArray());
+                    }
                 }
-
-
-                mFileIdsToPromote.Add(mSecFileIteration.EntityIterationId);
+                finally
+                {
+                    if (mPromoteResult == null && mPromoteFailed == false)
+                    {
+                        // clear the promoted items
+                        if (mPromoteResult.ItemRevArray != null)
+                        {
+                            mVault.ItemService.DeleteUnusedItemNumbers(new List<long> { mPromoteResult.ItemRevArray.FirstOrDefault().MasterId }.ToArray());
+                            if (mCurrentItem != null && mCurrentItem.Locked == true)
+                            {
+                                // if the item was created, but not assigned, we need to undo the edit
+                                mVault.ItemService.UndoEditItems(new List<long> { mCurrentItem.MasterId }.ToArray());
+                            }                            
+                        }
+                    }
+                    if (mPromoteFailed == true)
+                    {
+                        // give feedback that the target item might be edited by another user                        
+                    }
+                }
 
                 mVault.Dispose();
             }
