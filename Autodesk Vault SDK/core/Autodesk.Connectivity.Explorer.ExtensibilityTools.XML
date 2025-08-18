@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<doc>
+  <assembly>
+    <name>Autodesk.Connectivity.Explorer.ExtensibilityTools</name>
+  </assembly>
+  <members>
+    <member name="T:Autodesk.Connectivity.Explorer.ExtensibilityTools.IExplorerUtil">
+      <summary>A collection of useful operations for Vault Explorer to run.</summary>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.IExplorerUtil.GoToEntity(Autodesk.DataManagement.Client.Framework.Vault.Currency.Entities.IEntity)">
+      <summary>Navigate to an entity.</summary>
+      <param name="entity">the entity to navigate to</param>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.IExplorerUtil.UpdateFileProperties(Autodesk.Connectivity.WebServices.File,System.Collections.Generic.Dictionary{Autodesk.Connectivity.WebServices.PropDef,System.Object})">
+      <summary>Updates a set of properties for a file.</summary>
+      <param name="file">The file whose properties will be updated.</param>
+      <param name="props">A Dictionary containing the updated property values. Key = property object; Value = new value</param>
+    </member>
+    <member name="T:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader">
+      <summary>Performs a partial load of Vault Explorer and returns an interface for making calls into it.</summary>
+    </member>
+    <member name="T:Autodesk.Connectivity.Explorer.ExtensibilityTools.Product">
+      <summary>An representation of a Vault product.</summary>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.#ctor">
+      <summary>The constructor.</summary>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.GetExePath(Autodesk.Connectivity.Explorer.ExtensibilityTools.Product)">
+      <summary>Finds the installed path to the Vault Explorer EXE.</summary>
+      <returns>The installed path to the Vault Explorer EXE or null if the installation path was not found.</returns>
+      <param name="product">The Vault product.</param>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.GetExplorerUtil(Autodesk.Connectivity.Explorer.Extensibility.IApplication)">
+      <summary>Gets an interface for making calls into Vault Explorer</summary>
+      <returns>An interface for making calls into Vault Explorer.</returns>
+      <param name="application">The application context.</param>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.GetProductFromRegistry(Autodesk.Connectivity.Explorer.ExtensibilityTools.Product@,System.String@)">
+      <summary>Finds the installed product and its exePath</summary>
+      <param name="product">The installed Vault Product found in Registry.</param>
+      <param name="exePath">The exePath of installed product</param>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.LoadExplorerUtil">
+      <summary>
+        <div style="BORDER-BOTTOM: #d0d0d0 1px; PADDING-BOTTOM: 2px; MARGIN-BOTTOM: 5px; COLOR: #a0a0a0; PADDING-TOP: 2px">
+    Loads an interface for making calls into Vault Explorer.
+</div>
+      </summary>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.LoadExplorerUtil(System.String,System.String,System.Int64,System.String)">
+      <summary>Loads an interface for making calls into Vault Explorer.</summary>
+      <returns>An interface for making calls into Vault Explorer.</returns>
+      <param name="server">The server to connect to.</param>
+      <param name="vaultName">The vault name.</param>
+      <param name="userId">The ID of the logged in user.</param>
+      <param name="ticket">The authentication ticket.</param>
+    </member>
+    <member name="M:Autodesk.Connectivity.Explorer.ExtensibilityTools.ExplorerLoader.LoadExplorerUtil(Autodesk.Connectivity.Explorer.ExtensibilityTools.Product,System.String,System.String,System.Int64,System.String,System.String,System.String)">
+      <summary>Loads an interface for making calls into Vault Explorer.</summary>
+      <returns>An interface for making calls into Vault Explorer.</returns>
+      <param name="product">The Vault product that is installed.</param>
+      <param name="server">The server to connect to.</param>
+      <param name="vaultName">The vault name.</param>
+      <param name="userId">The ID of the logged in user.</param>
+      <param name="ticket">The authentication ticket.</param>
+      <param name="loadPath">The folder where Vault Explorer is installed.</param>
+      <param name="overrideLoadPath">An folder for DLL overrides. Used in cases where the default Vault Explorer DLLs can't load properly. Vaule may be null.</param>
+    </member>
+    <member name="F:Autodesk.Connectivity.Explorer.ExtensibilityTools.Product.Vault">
+      <summary>The basic Vault product.</summary>
+    </member>
+    <member name="F:Autodesk.Connectivity.Explorer.ExtensibilityTools.Product.VaultProfessional">
+      <summary>The Vault Professional product.</summary>
+    </member>
+  </members>
+</doc>
