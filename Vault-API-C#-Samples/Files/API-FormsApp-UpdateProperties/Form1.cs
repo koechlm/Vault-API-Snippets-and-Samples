@@ -78,6 +78,8 @@ namespace API_FormsApp_UpdateProperties
                 {
                     ACET.IExplorerUtil mExplUtil = ACET.ExplorerLoader.LoadExplorerUtil(
                              conn.Server, conn.Vault, conn.UserID, conn.Ticket);
+
+                    // Note: method UpdateFileProperties requires 2026 Update 1 for Vault Client installed
                     mExplUtil.UpdateFileProperties(File, PropDictionary);
                     return true;
                 }

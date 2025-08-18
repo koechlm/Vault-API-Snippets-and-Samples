@@ -32,16 +32,6 @@ namespace API_SampleJob_UpdatePartNumberUDP
         {
             try
             {
-                MessageBox.Show("Hello World", "Job-Template-Messenger", MessageBoxButtons.OK);
-                return JobOutcome.Success;
-            }
-            catch (Exception ex)
-            {
-                context.Log(ex, "Job-Template Job failed: " + ex.ToString() + " ");
-                return JobOutcome.Failure;
-            }
-            try
-            {
                 // Correcting the usage of Params property to access the dictionary
                 long fileId = Convert.ToInt64(job.Params["FileId"]);
                 ACW.File mFile;
@@ -60,8 +50,10 @@ namespace API_SampleJob_UpdatePartNumberUDP
 
                     try
                     {
-                        ACET.IExplorerUtil mExplUtil = ACET.ExplorerLoader.LoadExplorerUtil(
-                      context.Connection.Server, context.Connection.Vault, context.Connection.UserID, context.Connection.Ticket);
+                        ACET.IExplorerUtil mExplUtil = ACET.ExplorerLoader.LoadExplorerUtil(context.Connection.Server, 
+                            context.Connection.Vault, context.Connection.UserID, context.Connection.Ticket);
+
+                        // Note: method UpdateFileProperties requires 2026 Update 1 for Vault Client installed
                         mExplUtil.UpdateFileProperties(mFile, mPropDictionary);
                     }
                     catch (Exception ex)
