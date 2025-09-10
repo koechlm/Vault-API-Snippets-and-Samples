@@ -80,6 +80,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API-SampleJob-UpdatePartNum
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API-FormsApp-UpdateProperties", "Vault-API-C#-Samples\Files\API-FormsApp-UpdateProperties\API-FormsApp-UpdateProperties.csproj", "{055636F4-0107-4320-B6BD-BD970C6DA176}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomObjects_Properties_Name-Value-Map", "Vault-API-C#-Samples\Properties\CustomObjects_Properties_Name-Value-Map\CustomObjects_Properties_Name-Value-Map.csproj", "{877124DA-DADF-451C-BE56-9B8F54E316EC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Properties", "Properties", "{20702003-7045-4DCF-99E0-142FA9806222}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -135,6 +139,14 @@ Global
 		{055636F4-0107-4320-B6BD-BD970C6DA176}.Release|Any CPU.Build.0 = Release|Any CPU
 		{055636F4-0107-4320-B6BD-BD970C6DA176}.Release|x64.ActiveCfg = Release|Any CPU
 		{055636F4-0107-4320-B6BD-BD970C6DA176}.Release|x64.Build.0 = Release|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Debug|x64.Build.0 = Debug|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Release|x64.ActiveCfg = Release|Any CPU
+		{877124DA-DADF-451C-BE56-9B8F54E316EC}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -149,6 +161,8 @@ Global
 		{7D289F6A-ACA7-4E7E-A25B-4DE8086C75B0} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{6B58DDF4-AF34-47A0-8B64-9B498CCD0978} = {7D289F6A-ACA7-4E7E-A25B-4DE8086C75B0}
 		{055636F4-0107-4320-B6BD-BD970C6DA176} = {0CEBACB2-D62A-4EAD-8CEC-CE73CF294902}
+		{877124DA-DADF-451C-BE56-9B8F54E316EC} = {20702003-7045-4DCF-99E0-142FA9806222}
+		{20702003-7045-4DCF-99E0-142FA9806222} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {844905FD-302E-4995-AC88-FAD51CBC0076}

@@ -31,6 +31,7 @@
     <Folder Include="Items\" />
     <Folder Include="Admin\" />
     <Folder Include="ECO\" />
+    <Folder Include="Properties\" />
     <Folder Include="_Drafts\" />
     <Folder Include="_Templates\" />
     <Folder Include="Search\" />
@@ -53,13 +54,13 @@
     <Compile Include="Admin\Vault-API-Sample-QueryGroupMembership.ps1" />
     <Compile Include="Admin\Vault-API-Sample-RemoveVaultOption.ps1" />
     <Compile Include="Job\Vault-API-Sample-ReviewJobQueue-InvestigateParamArray.ps1" />
+    <Compile Include="Properties\CustomObjects_Properties_Name-Value-Map.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-ChangeOrders.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-Custents.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-File-byDate.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-Files.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-Items.ps1" />
     <Compile Include="Login\Vault-API-Sample-SecondaryLogin.ps1" />
-    <Compile Include="_Templates\_Vault-API-Sample-GoToFile.ps1" />
     <Compile Include="_Templates\_Vault-API-Sample-Template.ps1" />
     <Compile Include="_Drafts\_Vault-API-Sample-GoToFile.ps1" />
   </ItemGroup>
