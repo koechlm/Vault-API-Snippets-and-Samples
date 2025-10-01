@@ -4,10 +4,10 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{009F5CBC-7F62-4518-8F99-CE09A5F9004F}</ProjectGuid>
+    <ProjectGuid>{877124DA-DADF-451C-BE56-9B8F54E316EC}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>API_Onboarding_UpdateProperties</RootNamespace>
-    <AssemblyName>API_Onboarding_UpdateProperties</AssemblyName>
+    <RootNamespace>CustomObjects_Properties_Name_Value_Map</RootNamespace>
+    <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -33,21 +33,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Autodesk.Connectivity.Explorer.Extensibility">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.Connectivity.Explorer.Extensibility.dll</HintPath>
-    </Reference>
-    <Reference Include="Autodesk.Connectivity.Explorer.ExtensibilityTools">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.Connectivity.Explorer.ExtensibilityTools.dll</HintPath>
-    </Reference>
-    <Reference Include="Autodesk.Connectivity.Extensibility.Framework">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.Connectivity.Extensibility.Framework.dll</HintPath>
-    </Reference>
-    <Reference Include="Autodesk.Connectivity.IDServicesWrapper">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.Connectivity.IDServicesWrapper.dll</HintPath>
-    </Reference>
-    <Reference Include="Autodesk.Connectivity.JobProcessor.Extensibility">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.Connectivity.JobProcessor.Extensibility.dll</HintPath>
-    </Reference>
     <Reference Include="Autodesk.Connectivity.WebServices">
       <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.Connectivity.WebServices.dll</HintPath>
     </Reference>
@@ -62,9 +47,6 @@
     </Reference>
     <Reference Include="Autodesk.Connectivity.LicenseWrapper">
       <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\\Autodesk.Connectivity.LicenseWrapper.dll</HintPath>
-    </Reference>
-    <Reference Include="Autodesk.DataManagement.Client.Framework.Vault.Forms">
-      <HintPath>..\..\..\Autodesk Vault SDK\Autodesk.DataManagement.Client.Framework.Vault.Forms.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

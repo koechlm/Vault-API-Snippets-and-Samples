@@ -15,8 +15,8 @@ namespace API_ConsoleApp_UpdateItemFileAssociations
         {
             #region ConnectToVault
             ServerIdentities mServerId = new ServerIdentities();
-            mServerId.DataServer = "192.168.85.142";           //replace value by command line args[i]
-            mServerId.FileServer = "192.168.85.142";
+            mServerId.DataServer = "localhost";           //replace value by command line args[i]
+            mServerId.FileServer = "localhost";
             string mVaultName = "PDMC-Sample";
             string mUserName = "CAD Admin";
             string mPassword = "";
