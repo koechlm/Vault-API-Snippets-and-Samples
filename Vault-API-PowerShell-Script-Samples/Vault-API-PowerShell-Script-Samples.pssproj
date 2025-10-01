@@ -54,6 +54,7 @@
     <Compile Include="Admin\Vault-API-Sample-QueryGroupMembership.ps1" />
     <Compile Include="Admin\Vault-API-Sample-RemoveVaultOption.ps1" />
     <Compile Include="Job\Vault-API-Sample-ReviewJobQueue-InvestigateParamArray.ps1" />
+    <Compile Include="Login\Vault-API-Sample-WindowsAccountLogin.ps1" />
     <Compile Include="Properties\CustomObjects_Properties_Name-Value-Map.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-ChangeOrders.ps1" />
     <Compile Include="Search\Vault-API-Sample-Search-Custents.ps1" />
