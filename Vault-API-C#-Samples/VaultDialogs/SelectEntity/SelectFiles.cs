@@ -21,6 +21,7 @@ using DevExpress.Mvvm.Native;
 using Autodesk.DataManagement.Client.Framework.Vault.Forms.Results;
 using Autodesk.DataManagement.Client.Framework.Forms.Interfaces;
 using DevExpress.XtraPrinting.Native;
+using DevExpress.CodeParser;
 
 namespace SelectEntity
 {
@@ -29,6 +30,9 @@ namespace SelectEntity
         public static Settings mSettings = null;
 
         private VDF.Vault.Currency.Connections.Connection conn = null;
+
+        private object mDefaultHelpProvider = Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider;
+        internal static mHelpProvider mCustomHelpProvider = null;
 
         public SelectFiles()
         {
@@ -50,7 +54,13 @@ namespace SelectEntity
             else
             {
                 this.LookAndFeel.SetSkinStyle(VDF.Forms.SkinUtils.CustomThemeSkins.DarkThemeName);
+                // apply this theme to all VDF dialogs
+                VDF.Forms.SkinUtils.WinFormsTheme.Instance.ApplyThemeToForm(this);
             }
+
+            // register a custom help provider
+            mCustomHelpProvider = new mHelpProvider();           
+
         }
 
         private void btnLogin_Click(object sender, EventArgs e)
@@ -64,7 +74,7 @@ namespace SelectEntity
             else
             {
                 btnSelectEntity.Enabled = false;
-            }   
+            }
         }
 
         /// <summary>
@@ -86,6 +96,7 @@ namespace SelectEntity
 
         private void SelectFiles_FormClosing(object sender, FormClosingEventArgs e)
         {
+            Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider = (ICustomHelpProvider)mDefaultHelpProvider;
             VDF.Vault.Library.ConnectionManager.CloseAllConnections();
         }
 
@@ -99,9 +110,6 @@ namespace SelectEntity
                 // prepare last used entity type filter
                 string mLastEntityFilter = null;
 
-                var defaultHelpProvider = Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider;
-
-                Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider = new mHelpProvider();
 
                 // create and set the select from Vault settings
                 VDF.Vault.Forms.Results.SelectEntityResults mSelectionResult = new();
@@ -126,7 +134,7 @@ namespace SelectEntity
                     return null;
                 };
 
-                mSelectFileSettings.HelpContext = "My Help";
+                mSelectFileSettings.HelpContext = "Select Files";
 
                 // set Filters for IPT/IAM
                 List<VDF.Vault.Forms.Settings.SelectEntitySettings.EntityRegularExpressionFilter> mFilters = new List<SelectEntitySettings.EntityRegularExpressionFilter>();
@@ -150,9 +158,6 @@ namespace SelectEntity
                     return;
                 }
 
-
-                // reset the help provider
-                Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider = defaultHelpProvider;
 
             }
         }
@@ -184,7 +189,7 @@ namespace SelectEntity
             return true;
         }
 
-        private class mHelpProvider : Autodesk.DataManagement.Client.Framework.Forms.Interfaces.ICustomHelpProvider
+        internal class mHelpProvider : Autodesk.DataManagement.Client.Framework.Forms.Interfaces.ICustomHelpProvider
         {
             public bool CanShowHelp(string helpId, object helpContext)
             {
@@ -194,8 +199,21 @@ namespace SelectEntity
 
             public void ShowHelp(string helpId, object helpContext)
             {
-                MessageBox.Show("My Help Provider");
+                //MessageBox.Show("My Help Provider, Id: " + helpId + " Context: " + helpContext.ToString());
+                VDF.Forms.Library.ShowMessage("Help Display", "Custom Help", VDF.Forms.Currency.ButtonConfiguration.Ok);
             }
+        }
+
+        private static Action mHelpAction()
+        {
+            //mCustomHelpProvider.ShowHelp("101", "mActionContext");
+            return null;
+        }
+
+        private void btnHelp_Click(object sender, EventArgs e)
+        {
+            // call the custom help provider ShowHelp
+            mCustomHelpProvider.ShowHelp("100", "Main Form"); 
         }
     }
 }

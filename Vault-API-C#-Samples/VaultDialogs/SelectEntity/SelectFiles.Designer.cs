@@ -31,6 +31,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SelectFiles));
             btnLogin = new DevExpress.XtraEditors.SimpleButton();
             btnSelectEntity = new DevExpress.XtraEditors.SimpleButton();
+            btnHelp = new DevExpress.XtraEditors.SimpleButton();
             SuspendLayout();
             // 
             // btnLogin
@@ -52,12 +53,22 @@
             btnSelectEntity.Text = "Select Files...";
             btnSelectEntity.Click += btnSelectEntity_Click;
             // 
+            // btnHelp
+            // 
+            btnHelp.Location = new System.Drawing.Point(12, 307);
+            btnHelp.Name = "btnHelp";
+            btnHelp.Size = new System.Drawing.Size(75, 23);
+            btnHelp.TabIndex = 2;
+            btnHelp.Text = "Help";
+            btnHelp.Click += btnHelp_Click;
+            // 
             // SelectFiles
             // 
             Appearance.Options.UseFont = true;
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 16F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             ClientSize = new System.Drawing.Size(737, 342);
+            Controls.Add(btnHelp);
             Controls.Add(btnSelectEntity);
             Controls.Add(btnLogin);
             Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, 0);
@@ -74,6 +85,7 @@
 
         private DevExpress.XtraEditors.SimpleButton btnLogin;
         private DevExpress.XtraEditors.SimpleButton btnSelectEntity;
+        private DevExpress.XtraEditors.SimpleButton btnHelp;
     }
 }
 
