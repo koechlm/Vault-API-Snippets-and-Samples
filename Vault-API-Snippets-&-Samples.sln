@@ -95,8 +95,11 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		Developer Guide.md = Developer Guide.md
-		Test.md = Test.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FileProperties_UpdateUdpValues", "Vault-API-C#-Samples\Properties\FileProperties_UpdateUdpValues\FileProperties_UpdateUdpValues.csproj", "{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vault-API-Sample-AutodeskAccountLogin", "Vault-API-C#-Samples\Login\Vault-API-Sample-AutodeskAccountLogin\Vault-API-Sample-AutodeskAccountLogin.csproj", "{7A4ABB34-8348-4BCC-82E7-A9324D638607}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -169,6 +172,22 @@ Global
 		{76720EFD-DD3F-4BCD-A270-8347B95FEBA7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{76720EFD-DD3F-4BCD-A270-8347B95FEBA7}.Release|x64.ActiveCfg = Release|Any CPU
 		{76720EFD-DD3F-4BCD-A270-8347B95FEBA7}.Release|x64.Build.0 = Release|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Debug|x64.Build.0 = Debug|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Release|x64.ActiveCfg = Release|Any CPU
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95}.Release|x64.Build.0 = Release|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Debug|x64.Build.0 = Debug|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Release|x64.ActiveCfg = Release|Any CPU
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -189,6 +208,8 @@ Global
 		{FFCB11DE-E22D-492F-9E98-37F0891C9A4D} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{76720EFD-DD3F-4BCD-A270-8347B95FEBA7} = {3EDD2462-B950-43EC-BC9E-65D98F94C6FC}
 		{3EDD2462-B950-43EC-BC9E-65D98F94C6FC} = {FFCB11DE-E22D-492F-9E98-37F0891C9A4D}
+		{94F0B5F9-8942-42DB-A1C9-8ACEC3C73B95} = {20702003-7045-4DCF-99E0-142FA9806222}
+		{7A4ABB34-8348-4BCC-82E7-A9324D638607} = {0CDF5FFE-33F2-4E38-9443-88D9B8A034C2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {844905FD-302E-4995-AC88-FAD51CBC0076}
