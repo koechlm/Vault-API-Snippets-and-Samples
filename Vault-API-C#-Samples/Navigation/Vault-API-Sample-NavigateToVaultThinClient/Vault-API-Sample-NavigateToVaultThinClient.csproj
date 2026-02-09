@@ -4,9 +4,9 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{7A4ABB34-8348-4BCC-82E7-A9324D638607}</ProjectGuid>
+    <ProjectGuid>{A15C7CA7-BD09-49F2-944C-3CD0D3FEC700}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>Vault_API_Sample_AutodeskAccountLogin</RootNamespace>
+    <RootNamespace>Vault_API_Sample_NavigateToVaultThinClient</RootNamespace>
     <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
