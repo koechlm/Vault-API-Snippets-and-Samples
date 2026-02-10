@@ -7,7 +7,7 @@
     <ProjectGuid>{7A4ABB34-8348-4BCC-82E7-A9324D638607}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Vault_API_Sample_AutodeskAccountLogin</RootNamespace>
-    <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
+    <AssemblyName>Vault-API-Sample-AutodeskAccountLogin</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>

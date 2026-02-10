@@ -21,9 +21,9 @@ namespace Vault_API_Sample_AutodeskAccountLogin
             ServerIdentities mServerId = new ServerIdentities();
             mServerId.DataServer = "localhost";
             mServerId.FileServer = "localhost";
-            string mVaultName = "PDMC-Sample"; // Leave empty or specify vault name
+            string mVaultName = "PDMC-Sample";
             
-            WebServiceManager mVault = null;
+            WebServiceManager webServiceManager = null;
             AutodeskAuthCredentials mAdskAccntCred = null;
 
             try
@@ -59,7 +59,7 @@ namespace Vault_API_Sample_AutodeskAccountLogin
                 );
                 
                 // Create WebServiceManager with Autodesk Account credentials
-                mVault = new WebServiceManager(mAdskAccntCred);
+                webServiceManager = new WebServiceManager(mAdskAccntCred);
                 
                 Console.WriteLine("Connected to Vault successfully.");
 
@@ -70,7 +70,7 @@ namespace Vault_API_Sample_AutodeskAccountLogin
                     
                     // Build the search condition
                     SrchCond srchCond = new SrchCond();
-                    PropDef[] propDefs = mVault.PropertyService.GetPropertyDefinitionsByEntityClassId("FILE");
+                    PropDef[] propDefs = webServiceManager.PropertyService.GetPropertyDefinitionsByEntityClassId("FILE");
                     PropDef propDef = propDefs.Where(pd => pd.SysName == "Name").FirstOrDefault();
                     
                     if (propDef != null)
@@ -87,12 +87,12 @@ namespace Vault_API_Sample_AutodeskAccountLogin
                         List<File> resultAll = new List<File>();
                         
                         // Get root folder
-                        Folder rootFolder = mVault.DocumentService.GetFolderRoot();
+                        Folder rootFolder = webServiceManager.DocumentService.GetFolderRoot();
                         
                         // Perform search
                         while (searchStatus == null || resultAll.Count < searchStatus.TotalHits)
                         {
-                            File[] resultPage = mVault.DocumentService.FindFilesBySearchConditions(
+                            File[] resultPage = webServiceManager.DocumentService.FindFilesBySearchConditions(
                                 new SrchCond[] { srchCond },
                                 new SrchSort[] { srchSort },
                                 new long[] { rootFolder.Id },
@@ -143,7 +143,7 @@ namespace Vault_API_Sample_AutodeskAccountLogin
                 }
                 
                 // Don't forget to release the connection and return the license
-                mVault.Dispose();
+                webServiceManager.Dispose();
                 Console.WriteLine("Vault connection disposed.");
             }
             catch (Exception ex)
