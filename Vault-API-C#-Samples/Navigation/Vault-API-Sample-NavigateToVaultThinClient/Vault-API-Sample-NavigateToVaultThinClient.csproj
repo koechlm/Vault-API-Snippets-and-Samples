@@ -7,7 +7,7 @@
     <ProjectGuid>{A15C7CA7-BD09-49F2-944C-3CD0D3FEC700}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Vault_API_Sample_NavigateToVaultThinClient</RootNamespace>
-    <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
+    <AssemblyName>Vault-API-Sample-NavigateToVaultThinClient</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -67,6 +67,9 @@
     </Reference>
     <Reference Include="Autodesk.Connectivity.LicenseWrapper">
       <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\\Autodesk.Connectivity.LicenseWrapper.dll</HintPath>
+    </Reference>
+    <Reference Include="Autodesk.DataManagement.Client.Framework.Vault.Forms">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.Vault.Forms.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

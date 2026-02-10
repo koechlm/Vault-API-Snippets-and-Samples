@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("API Onboarding - Console Application")]
-[assembly: AssemblyDescription("API Introduction Sample 01 - Console Application")]
+[assembly: AssemblyTitle("Vault-API-Sample-NavigateToVaultThinClient")]
+[assembly: AssemblyDescription("Navigate to Thin Client for Folder, File, Fileversion, Item, Itemversion and ECO")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Autodesk")]
 [assembly: AssemblyProduct("Autodesk Vault Professional - API Sample")]
-[assembly: AssemblyCopyright("Copyright © Autodesk 2025")]
+[assembly: AssemblyCopyright("Copyright © Autodesk 2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
