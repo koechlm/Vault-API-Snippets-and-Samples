@@ -16,9 +16,6 @@ namespace Vault_API_Sample_NavigateToVaultThinClient
 {
     class Program
     {
-        // Constant for Vault Explorer executable path
-        private const string VAULT_EXPLORER_PATH = @"C:\Program Files\Autodesk\Vault Client 2026\Explorer\Connectivity.VaultPro.exe";
-
         static void Main(string[] args)
         {
             #region entity variables
