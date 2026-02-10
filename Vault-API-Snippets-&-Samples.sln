@@ -74,7 +74,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API-ConsoleApp-PromoteFileT
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API-ConsoleApp-UpdateItemFileAssociations", "Vault-API-C#-Samples\Items\API-ConsoleApp-UpdateItemFileAssociations\API-ConsoleApp-UpdateItemFileAssociations.csproj", "{AC70A57B-0A50-4312-BB35-73EF3ACCBB20}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CustomJobs", "CustomJobs", "{7D289F6A-ACA7-4E7E-A25B-4DE8086C75B0}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Jobs", "Jobs", "{7D289F6A-ACA7-4E7E-A25B-4DE8086C75B0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API-SampleJob-UpdatePartNumberUDP", "Vault-API-C#-Samples\CustomJobs\API-SampleJob-UpdatePartNumberUDP\API-SampleJob-UpdatePartNumberUDP.csproj", "{6B58DDF4-AF34-47A0-8B64-9B498CCD0978}"
 EndProject
@@ -104,6 +104,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vault-API-Sample-AutodeskAccountLogin", "Vault-API-C#-Samples\Login\Vault-API-Sample-AutodeskAccountLogin\Vault-API-Sample-AutodeskAccountLogin.csproj", "{7A4ABB34-8348-4BCC-82E7-A9324D638607}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Navigation", "Navigation", "{4C284F37-317A-4524-888C-9B4F010E3C22}"
+	ProjectSection(SolutionItems) = preProject
+		Vault-API-C#-Samples\Navigation\Vault Navigation.pptx = Vault-API-C#-Samples\Navigation\Vault Navigation.pptx
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vault-API-Sample-NavigateToVaultExplorer", "Vault-API-C#-Samples\Navigation\Vault-API-Sample-NavigateToVaultExplorer\Vault-API-Sample-NavigateToVaultExplorer.csproj", "{A498CD9E-09EC-4012-AB00-9557B804D4C4}"
 EndProject
