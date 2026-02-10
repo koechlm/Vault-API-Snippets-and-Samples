@@ -7,7 +7,7 @@
     <ProjectGuid>{A498CD9E-09EC-4012-AB00-9557B804D4C4}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Vault_API_Sample_NavigateToVaultExplorer</RootNamespace>
-    <AssemblyName>SD124422-Sample-01-CSharp</AssemblyName>
+    <AssemblyName>Vault-API-Sample-NavigateToVaultExplorer</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -86,19 +86,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="CustentDataCommandRequest.acr">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="EcoDataCommandRequest.acr">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="FileDataCommandRequest.acr">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="FolderDataCommandRequest.acr">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="ItemDataCommandRequest.acr">
+    <None Include="DataCommandRequest.acr">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

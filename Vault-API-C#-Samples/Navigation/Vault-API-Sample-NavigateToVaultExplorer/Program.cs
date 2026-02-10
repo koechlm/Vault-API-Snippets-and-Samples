@@ -17,22 +17,11 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
 {
     class Program
     {
+        // Constant for Vault Explorer executable path
+        private const string VAULT_EXPLORER_PATH = @"C:\Program Files\Autodesk\Vault Client 2026\Explorer\Connectivity.VaultPro.exe";
+
         static void Main(string[] args)
         {
-            #region constants
-            // You can change these constants to match your Vault environment
-            const string server = "http://your_vault_server";
-            const string vaultName = "YourVaultName";
-            const string folderFullName = "/path/to/your/folder";
-            const string parentFolderFullName = "/path/to/your";
-            const string fileName = "file.txt";
-
-            const string ItemNumber = "ITEM-0001";
-            const string ChangeOrderNumber = "ECO-0001";
-            const string customEntityDefName = "CustomEntityDefinitionName"; // the name of a custom object definition in your Vault
-            const string CustomObjectName = "CustomObjectName"; // The (default) Name property value of the custom object you want to retrieve
-            #endregion constants
-
             #region entity variables
             ACW.File file = null;
             ACW.Item item = null;
@@ -41,6 +30,11 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
             #endregion entity variables
 
             #region ConnectToVault
+
+            // Prompt user to press enter to continue; this allows time to attach a debugger if needed before the Autodesk Account login dialog appears
+            Console.WriteLine("Time to connect your debugger. Press Enter to start login...");
+            Console.ReadLine();
+
             Autodesk.DataManagement.Client.Framework.Vault.Currency.Connections.Connection connection = null;
             WebServiceManager webServiceManager = null;
 
@@ -55,94 +49,240 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
             {
                 webServiceManager = connection.WebServiceManager;
 
-                // Get the folder by its path in Vault
-                ACW.Folder folder = webServiceManager.DocumentService.FindFoldersByPaths(new string[] { folderFullName }).FirstOrDefault();
-                if (folder == null) {
-                    Console.WriteLine($"Folder '{folderFullName}' not found");
-                    return;
-                }
-                // build the URL to navigate using a browser. The URL format is: http://{server}/AutodeskDM/Services/EntityDataCommandRequest.aspx?Vault={vaultName}&ObjectId={folderFullName}&ObjectType=Folder&Command=Select
-                string folderUrl = $"http://{server}/AutodeskDM/Services/EntityDataCommandRequest.aspx?Vault={Uri.EscapeDataString(vaultName)}&ObjectId={Uri.EscapeDataString(folderFullName)}&ObjectType=Folder&Command=Select";
-                Console.WriteLine($"Folder URL: {folderUrl}");
+                // Get server and vault name from the connection
+                string server = connection.Server;
+                string vaultName = connection.Vault;
 
-                // Create ACR file from template for navigating to folder
-                string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FolderDataCommandRequest.acr");
-                string outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToFolder.acr");
-                
-                if (CreateAcrFileFromTemplate(templatePath, outputPath, server, vaultName, folderFullName))
-                {
-                    Console.WriteLine($"Created ACR file: {outputPath}");
+                Console.WriteLine($"Connected to Vault: {vaultName} on Server: {server}");
+                Console.WriteLine();
 
-                    // Start Vault Explorer with the ACR file to navigate to the folder; the path to the Vault Explorer is C:\Program Files\Autodesk\Vault Client 2026\Explorer\Connectivity.VaultPro.exe, provide the acr file as an argument when starting the process
-                    System.Diagnostics.Process.Start(@"C:\Program Files\Autodesk\Vault Client 2026\Explorer\Connectivity.VaultPro.exe", outputPath);
-                }
-                else
+                // Prompt user for entity identifiers
+                Console.WriteLine("We continue to ask for entity navigation information...");
+
+                // Prompt for folder path
+                Console.Write("Enter folder full path or press Enter to use default (e.g., $/Designs) [default: $/Designs]: ");
+                string folderFullName = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(folderFullName))
                 {
-                    Console.WriteLine($"Failed to create ACR file. Template not found: {templatePath}");
+                    folderFullName = "$/Designs";
                 }
 
-                // Get the file by its path in Vault
-                file = webServiceManager.DocumentService.FindLatestFilesByPaths(new string[] { parentFolderFullName + "/" + fileName }).FirstOrDefault();
-                if (file != null)
+                // Navigate to Folder
+                if (!string.IsNullOrWhiteSpace(folderFullName))
                 {
-                    // Create ACR file for navigating to file
-                    string fileTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "FileDataCommandRequest.acr");
-                    string fileOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToFile.acr");
-                    string fileFullPath = parentFolderFullName + "/" + fileName;
-                    
-                    if (CreateAcrFileFromTemplate(fileTemplatePath, fileOutputPath, server, vaultName, fileFullPath, "File"))
+                    ACW.Folder folder = webServiceManager.DocumentService.FindFoldersByPaths(new string[] { folderFullName }).FirstOrDefault();
+                    if (folder == null)
                     {
-                        Console.WriteLine($"Created ACR file for file: {fileOutputPath}");
+                        Console.WriteLine($"Folder '{folderFullName}' not found");
+                    }
+                    else
+                    {
+                        // build the URL to navigate using a browser
+                        string folderUrl = $"http://{server}/AutodeskDM/Services/EntityDataCommandRequest.aspx?Vault={Uri.EscapeDataString(vaultName)}&ObjectId={Uri.EscapeDataString(folderFullName)}&ObjectType=Folder&Command=Select";
+                        Console.WriteLine($"Folder URL: {folderUrl}");
+
+                        // Create ACR file from template for navigating to folder
+                        string templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataCommandRequest.acr");
+                        string outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToFolder.acr");
+
+                        if (CreateAcrFileFromTemplate(templatePath, outputPath, server, vaultName, folderFullName, "Folder"))
+                        {
+                            Console.WriteLine($"Created ACR file: {outputPath}");
+
+                            // Start Vault Explorer with the ACR file to navigate to the folder
+                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, outputPath);
+
+                            Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
+                            Console.ReadLine();
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to create ACR file. Template not found: {templatePath}");
+                        }
                     }
                 }
 
-                // Get the item by its item number
-                item = webServiceManager.ItemService.GetLatestItemByItemNumber(ItemNumber);
-                if (item != null)
+                // Navigate to File
+                // Prompt for file information
+                Console.Write("Enter parent folder path for a file or press Enter to use the default(e.g., $/Designs/Inventor Sample Data/Car Seat):  [default: $/Designs/Inventor Sample Data/Car Seat]");
+                string parentFolderFullName = Console.ReadLine();
+                string fileName = null;
+                if (string.IsNullOrWhiteSpace(parentFolderFullName))
                 {
-                    // Create ACR file for navigating to item
-                    string itemTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ItemDataCommandRequest.acr");
-                    string itemOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToItem.acr");
-                    
-                    if (CreateAcrFileFromTemplate(itemTemplatePath, itemOutputPath, server, vaultName, item.ItemNum, "Item"))
+                    parentFolderFullName = "$/Designs/Inventor Sample Data/Car Seat";
+                }
+
+                Console.Write("Enter file name or press Enter to use the default (e.g., Car Seat.iam): [default: Car Seat.iam]");
+                fileName = Console.ReadLine();
+                // set default file name if not provided
+                if (string.IsNullOrWhiteSpace(fileName))
+                {
+                    fileName = "Car Seat.iam";
+                }
+
+                if (!string.IsNullOrWhiteSpace(parentFolderFullName) && !string.IsNullOrWhiteSpace(fileName))
+                {
+                    file = webServiceManager.DocumentService.FindLatestFilesByPaths(new string[] { parentFolderFullName + "/" + fileName }).FirstOrDefault();
+                    if (file == null)
                     {
-                        Console.WriteLine($"Created ACR file for item: {itemOutputPath}");
+                        Console.WriteLine($"File '{fileName}' not found in '{parentFolderFullName}'");
+                    }
+                    else
+                    {
+                        string fileTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataCommandRequest.acr");
+                        string fileOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToFile.acr");
+                        string fileFullPath = parentFolderFullName + "/" + fileName;
+
+                        if (CreateAcrFileFromTemplate(fileTemplatePath, fileOutputPath, server, vaultName, fileFullPath, "File"))
+                        {
+                            Console.WriteLine($"Created ACR file for file: {fileOutputPath}");
+
+                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, fileOutputPath);
+
+                            Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
+                            Console.ReadLine();
+                        }
                     }
                 }
 
-                // Get the change order by its change order number
-                changeOrder = webServiceManager.ChangeOrderService.GetChangeOrderByNumber(ChangeOrderNumber);
-                if (changeOrder != null)
+                // Navigate to Item
+                // Prompt for item number
+                Console.Write("Enter Item Number or press Enter to use the default (e.g., 002654): [default: 002654]");
+                string itemNumber = Console.ReadLine();
+                // provide a default item number if none provided
+                if (string.IsNullOrWhiteSpace(itemNumber))
                 {
-                    // Create ACR file for navigating to change order
-                    string ecoTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EcoDataCommandRequest.acr");
-                    string ecoOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToChangeOrder.acr");
-                    
-                    if (CreateAcrFileFromTemplate(ecoTemplatePath, ecoOutputPath, server, vaultName, changeOrder.Num, "ChangeOrder"))
+                    itemNumber = "002654";
+                }
+                if (!string.IsNullOrWhiteSpace(itemNumber))
+                {
+                    try
                     {
-                        Console.WriteLine($"Created ACR file for change order: {ecoOutputPath}");
+                        item = webServiceManager.ItemService.GetLatestItemByItemNumber(itemNumber);
+                        if (item == null)
+                        {
+                            Console.WriteLine($"Item '{itemNumber}' not found");
+                        }
+                        else
+                        {
+                            string itemTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataCommandRequest.acr");
+                            string itemOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToItem.acr");
+
+                            if (CreateAcrFileFromTemplate(itemTemplatePath, itemOutputPath, server, vaultName, item.ItemNum, "ItemRevision"))
+                            {
+                                Console.WriteLine($"Created ACR file for item: {itemOutputPath}");
+
+                                System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, itemOutputPath);
+
+                                Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
+                                Console.ReadLine();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error retrieving item '{itemNumber}': {ex.Message}");
                     }
                 }
 
-                // Custom Objects (CUSTENT) are user defined entities. Not knowing the sub-type id of it, we best search for a custom object by a given name and then get its id to retrieve it.
-                CustomObject = searchCustentByName(webServiceManager, customEntityDefName, CustomObjectName);
-                if (CustomObject != null)
+                // Navigate to Change Order
+                // Prompt for change order number
+                Console.Write("Enter Change Order Number or press Enter to use the default (e.g., ECO-000012): [default: ECO-000012]");
+                string changeOrderNumber = Console.ReadLine();
+                // provide a default change order number if none provided
+                if (string.IsNullOrWhiteSpace(changeOrderNumber))
                 {
-                    // Create ACR file for navigating to custom entity
-                    string custentTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CustentDataCommandRequest.acr");
-                    string custentOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToCustomEntity.acr");
-                    
-                    if (CreateAcrFileFromTemplate(custentTemplatePath, custentOutputPath, server, vaultName, CustomObject.Num, "CustomEntity"))
+                    changeOrderNumber = "ECO-000012";
+                }
+                if (!string.IsNullOrWhiteSpace(changeOrderNumber))
+                {
+                    try
                     {
-                        Console.WriteLine($"Created ACR file for custom entity: {custentOutputPath}");
+                        changeOrder = webServiceManager.ChangeOrderService.GetChangeOrderByNumber(changeOrderNumber);
+                        if (changeOrder == null)
+                        {
+                            Console.WriteLine($"Change Order '{changeOrderNumber}' not found");
+                        }
+                        else
+                        {
+                            string ecoTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataCommandRequest.acr");
+                            string ecoOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToChangeOrder.acr");
+
+                            if (CreateAcrFileFromTemplate(ecoTemplatePath, ecoOutputPath, server, vaultName, changeOrder.Num, "ECO"))
+                            {
+                                Console.WriteLine($"Created ACR file for change order: {ecoOutputPath}");
+
+                                System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, ecoOutputPath);
+
+                                Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
+                                Console.ReadLine();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error retrieving change order '{changeOrderNumber}': {ex.Message}");
                     }
                 }
+
+                // Navigate to Custom Entity
+                // Prompt for custom entity information
+                Console.Write("Enter Custom Entity Definition Name (singular, the UI displays plural!) or press Enter to use the default (e.g., Task): [default: Task]: ");
+                string customEntityDefName = Console.ReadLine();
+                // provide a default custom entity definition name if none provided
+                if (string.IsNullOrWhiteSpace(customEntityDefName))
+                {
+                    customEntityDefName = "Task";
+                }
+                // if custom entity definition name is provided, prompt for custom object name
+
+                string customObjectName = null;
+                if (!string.IsNullOrWhiteSpace(customEntityDefName))
+                {
+                    Console.Write("Enter Custom Object Name or press Enter to use the default (e.g., T-00001): [default: T-00001]: ");
+                    customObjectName = Console.ReadLine();
+                    // provide a default custom object name if none provided
+                    if (string.IsNullOrWhiteSpace(customObjectName))
+                    {
+                        customObjectName = "T-00001";
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(customEntityDefName) && !string.IsNullOrWhiteSpace(customObjectName))
+                {
+                    CustomObject = searchCustentByName(webServiceManager, customEntityDefName, customObjectName);
+                    if (CustomObject == null)
+                    {
+                        Console.WriteLine($"Custom Object '{customObjectName}' of type '{customEntityDefName}' not found");
+                    }
+                    else
+                    {
+                        // Get the custom entity definition to retrieve the correct sub-type id for the custom entity
+                        ACW.CustEntDef custEntDef = webServiceManager.CustomEntityService.GetAllCustomEntityDefinitions().Where(d => d.Id == CustomObject.CustEntDefId).FirstOrDefault();
+                        string custEntObjectID = $"{custEntDef.Name}/{CustomObject.Num}";
+
+                        string custentTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataCommandRequest.acr");
+                        string custentOutputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GoToCustomEntity.acr");
+
+                        if (CreateAcrFileFromTemplate(custentTemplatePath, custentOutputPath, server, vaultName, custEntObjectID, "CustomEntity"))
+                        {
+                            Console.WriteLine($"Created ACR file for custom entity: {custentOutputPath}");
+
+                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, custentOutputPath);
+
+                            Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
+                            Console.ReadLine();
+                        }
+                    }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine("All navigation operations completed.");
 
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                throw;
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
             }
             finally
             {
@@ -150,7 +290,7 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                 {
                     Vault.Forms.Library.Logout(connection);
                 }
-                
+
                 Console.WriteLine("\nPress any key to exit...");
                 Console.ReadKey();
             }
@@ -165,9 +305,9 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
         /// <param name="server">Vault server address</param>
         /// <param name="vaultName">Vault name</param>
         /// <param name="objectId">Object ID (folder path, file path, item number, etc.)</param>
-        /// <param name="objectType">Object type (Folder, File, Item, ChangeOrder, CustomEntity)</param>
+        /// <param name="objectType">Object type (Folder, File, ItemRevision, ECO, CustomEntity)</param>
         /// <returns>True if successful, false otherwise</returns>
-        private static bool CreateAcrFileFromTemplate(string templatePath, string outputPath, string server, string vaultName, string objectId, string objectType = "Folder")
+        private static bool CreateAcrFileFromTemplate(string templatePath, string outputPath, string server, string vaultName, string objectId, string objectType)
         {
             try
             {
@@ -180,23 +320,23 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
 
                 // Read the template file as XML
                 XDocument doc = XDocument.Load(templatePath);
-                
+
                 // Get the namespace
                 XNamespace ns = "http://schemas.autodesk.com/msd/plm/ExplorerAutomation/2004-11-01";
-                
+
                 // Replace placeholders in the XML
                 var serverElement = doc.Descendants(ns + "Server").FirstOrDefault();
                 if (serverElement != null)
                 {
                     serverElement.Value = server;
                 }
-                
+
                 var vaultElement = doc.Descendants(ns + "Vault").FirstOrDefault();
                 if (vaultElement != null)
                 {
                     vaultElement.Value = vaultName;
                 }
-                
+
                 var operationElement = doc.Descendants(ns + "Operation").FirstOrDefault();
                 if (operationElement != null)
                 {
@@ -207,16 +347,16 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                         objectTypeAttr.Value = objectType;
                     }
                 }
-                
+
                 var objectIdElement = doc.Descendants(ns + "ObjectID").FirstOrDefault();
                 if (objectIdElement != null)
                 {
                     objectIdElement.Value = objectId;
                 }
-                
+
                 // Save the modified XML to the output file
                 doc.Save(outputPath);
-                
+
                 return true;
             }
             catch (Exception ex)
@@ -243,10 +383,10 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                 ACW.SrchCond srchCond = new ACW.SrchCond();
                 ACW.PropDef[] propDefs = webServiceManager.PropertyService.GetPropertyDefinitionsByEntityClassId("CUSTENT");
                 ACW.PropDef propDef = propDefs.FirstOrDefault(p => p.SysName == "CustomEntityName");
-                
+
                 if (propDef == null)
                 {
-                    Console.WriteLine($"Property '{custentDefName}' not found");
+                    Console.WriteLine($"Property 'CustomEntityName' not found");
                     return null;
                 }
 
