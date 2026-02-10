@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{6b58ddf4-af34-47a0-8b64-9b498ccd0978}</ProjectGuid>
+    <ProjectGuid>{8C95E48A-9D68-4367-8624-D9AB8AD5F756}</ProjectGuid>
     <TargetFramework>net8.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
