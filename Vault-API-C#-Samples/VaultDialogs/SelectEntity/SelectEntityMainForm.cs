@@ -25,7 +25,7 @@ using DevExpress.CodeParser;
 
 namespace SelectEntity
 {
-    public partial class SelectFiles : DevExpress.XtraEditors.XtraForm
+    public partial class SelectEntityMainForm : DevExpress.XtraEditors.XtraForm
     {
         public static Settings mSettings = null;
 
@@ -34,7 +34,7 @@ namespace SelectEntity
         private object mDefaultHelpProvider = Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.CustomHelpProvider;
         internal static mHelpProvider mCustomHelpProvider = null;
 
-        public SelectFiles()
+        public SelectEntityMainForm()
         {
             InitializeComponent();
 

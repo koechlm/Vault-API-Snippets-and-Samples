@@ -21,7 +21,7 @@ namespace SelectEntity {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            Application.Run(new SelectFiles());
+            Application.Run(new SelectEntityMainForm());
         }
     }
 }

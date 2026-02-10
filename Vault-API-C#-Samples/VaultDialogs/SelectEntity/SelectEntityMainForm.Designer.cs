@@ -1,6 +1,6 @@
 ﻿namespace SelectEntity
 {
-    partial class SelectFiles
+    partial class SelectEntityMainForm
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SelectFiles));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SelectEntityMainForm));
             btnLogin = new DevExpress.XtraEditors.SimpleButton();
             btnSelectEntity = new DevExpress.XtraEditors.SimpleButton();
             btnHelp = new DevExpress.XtraEditors.SimpleButton();
