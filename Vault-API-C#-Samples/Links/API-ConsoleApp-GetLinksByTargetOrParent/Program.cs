@@ -41,7 +41,6 @@ namespace API_ConsoleApp_GetLinksByTargetOrParent
                 Console.WriteLine();
 
                 // Prompt user for entity identifiers
-                Console.WriteLine("We continue to ask for entity link information...");
 
                 try
                 {
