@@ -3,10 +3,11 @@ using System.Linq;
 using ACW = Autodesk.Connectivity.WebServices;
 using Autodesk.Connectivity.WebServicesTools;
 using Vault = Autodesk.DataManagement.Client.Framework.Vault;
+using System.Collections.Generic;
 
 // Synchronize properties sample helper class
 
-namespace Vault_API_Sample_SynchronizeProperties
+namespace Vault_API_Sample_ManageProperties
 {
     class Program
     {
@@ -66,7 +67,16 @@ namespace Vault_API_Sample_SynchronizeProperties
                     bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.WriteBoolPropertyAsN") == "1";
 
                     // Initialize PropertySync helper class, leverage date and bool conversion options if needed by setting the dateOnly and boolAsInt parameters in the constructor;
-                    PropertySync propertySync = new PropertySync(webServiceManager, dateOnly, boolAsInt);
+                    ManageProperties propertySync = new ManageProperties(connection, dateOnly, boolAsInt);
+                    Dictionary<string, string> newPropValues = null;
+
+                    // Prompt to update property values before synchronization; this allows the user to test the property sync with custom values if desired; if the user just presses enter, the sample will proceed with default property values defined in the ManageProperties class
+                    Console.WriteLine("Do you want to update property values before synchronization? (y/n, press Enter for default 'n')");
+                    string updatePropertiesInput = Console.ReadLine();
+                    if (updatePropertiesInput.ToLower() == "y")
+                    {
+                        newPropValues = propertiesToUpdate();
+                    }
 
                     // Synchronize properties from CAD file to Vault
                     ACW.PropWriteResults writeResults;
@@ -75,13 +85,13 @@ namespace Vault_API_Sample_SynchronizeProperties
                     Console.WriteLine("Synchronizing properties...");
                     
                     ACW.File updatedFile = propertySync.SyncProperties(
-                        webServiceManager,
                         file,
                         "Property sync via API sample",
                         allowSync: true,
                         out writeResults,
                         out cloakedEntityClasses,
-                        force: false  // set to true to force sync even if no compliance failures exist
+                        force: false,  // set to true to force sync even if no compliance failures exist
+                        overridePropValues: newPropValues  // optionally pass in custom property values to override values read from the CAD file during sync; this allows you to test the sync with different values without having to change the values in the CAD file and re-upload each time
                     );
 
                     if (updatedFile.Id == file.Id && updatedFile.VerNum == file.VerNum)
@@ -125,6 +135,25 @@ namespace Vault_API_Sample_SynchronizeProperties
                 Console.WriteLine("\nPress any key to exit...");
                 Console.ReadKey();
             }
+        }
+
+        private static Dictionary<string, string> propertiesToUpdate()
+        {
+            Dictionary<string, string> overridePropValues = new Dictionary<string, string>();
+            Console.WriteLine("Enter property values to override during sync (press Enter to skip a property):");
+            Console.Write("Title: ");
+            string titleValue = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(titleValue))
+            {
+                overridePropValues["Title"] = titleValue;
+            }
+            Console.Write("Part Number: ");
+            string partNumberValue = Console.ReadLine();
+            if (!string.IsNullOrWhiteSpace(partNumberValue))
+            {
+                overridePropValues["Part Number"] = partNumberValue;
+            }
+            return overridePropValues;
         }
     }
 }
