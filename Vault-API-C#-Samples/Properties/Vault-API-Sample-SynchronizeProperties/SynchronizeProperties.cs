@@ -18,12 +18,30 @@ namespace Vault_API_Sample_SynchronizeProperties
     /// </summary>
     public class PropertySync
     {
+        // property cache used to find date and bool types; Vault options allow to return date without time and bool as 0/1 instead of true/false
+        private Dictionary<string, Dictionary<long, ACW.PropDef>> m_propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
+        private bool dateOnly = true;
+        private bool boolAsInt = false;
+
         /// <summary>
         /// Constructor, takes a WebServiceManager as parameter in case we need to make multiple calls to the web services and want to reuse the same manager.
         /// </summary>
         /// <param name="webSrvMgr"></param>
-        public PropertySync(ACWT.WebServiceManager webSrvMgr)
+        /// <param name="dateOnly"></param>
+        /// <param name="boolAsInt"></param>
+        public PropertySync(ACWT.WebServiceManager webSrvMgr, bool dateOnly = true, bool boolAsInt = false)
         {
+            this.dateOnly = dateOnly;
+            this.boolAsInt = boolAsInt;
+
+            // prime the property definition cache with all prop defs for files and items
+            foreach (string entityClass in new string[] { "FILE", "ITEM" })
+            {
+                m_propDefsByEntityClassAndId.Add(
+                    entityClass,
+                    webSrvMgr.PropertyService.GetPropertyDefinitionsByEntityClassId(entityClass).ToDictionary(pd => pd.Id)
+                    );
+            }
         }
 
         /// <summary>
@@ -118,7 +136,8 @@ namespace Vault_API_Sample_SynchronizeProperties
                     {
                         Moniker = p.Moniker,
                         CanCreate = p.CreateNew,
-                        Val = p.Val
+                        // convert property value based on property type and conversion options for date and bool types.
+                        Val = ConvertPropertyValue(p, m_propDefsByEntityClassAndId[p.EntClassId][p.PropDefId].Typ)
                     }
                     ).ToArray();
 
@@ -172,6 +191,56 @@ namespace Vault_API_Sample_SynchronizeProperties
             }
 
             return file;
+        }
+
+        /// <summary>
+        /// Converts a component property value to the appropriate format based on property type and conversion options.
+        /// Handles date-only and bool-as-int conversions if configured.
+        /// </summary>
+        /// <param name="compProp">The component property to convert</param>
+        /// <param name="dataType">The property data type from the property definition</param>
+        /// <returns>The converted property value</returns>
+        private object ConvertPropertyValue(ACW.CompProp compProp, ACW.DataType dataType)
+        {
+            if (compProp.Val == null)
+                return null;
+
+            switch (dataType)
+            {
+                case ACW.DataType.DateTime:
+                    if (compProp.Val is DateTime dateValue)
+                    {
+                        if (dateOnly)
+                        {
+                            // Remove time portion, keep only date
+                            return dateValue.Date.ToShortDateString();
+                        }
+                        return dateValue;
+                    }
+                    break;
+
+                case ACW.DataType.Bool:
+                    if (compProp.Val is bool boolValue)
+                    {
+                        if (boolAsInt)
+                        {
+                            // Convert bool to integer: true = 1, false = 0
+                            return boolValue ? 1 : 0;
+                        }
+                        return boolValue;
+                    }
+                    break;
+
+                case ACW.DataType.Numeric:
+                case ACW.DataType.String:
+                case ACW.DataType.Image:
+                default:
+                    // Return value as-is for numeric, string, image, and other types
+                    return compProp.Val;
+            }
+
+            // Fallback: return the original value
+            return compProp.Val;
         }
     }
 }

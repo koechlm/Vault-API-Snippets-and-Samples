@@ -61,8 +61,12 @@ namespace Vault_API_Sample_SynchronizeProperties
                     Console.WriteLine($"Found file: {file.Name} (ID: {file.Id})");
                     Console.WriteLine();
 
-                    // Initialize PropertySync helper class
-                    PropertySync propertySync = new PropertySync(webServiceManager);
+                    // read the options for date and bool conversion from the Vault settings; both settings store 0/1 values, so we check if the value is 1 to determine if the option is enabled or not; if the options are enabled, we will convert dates to date-only values and bools to integers during the property sync process; if the options are disabled, we will sync properties with their full date/time values and bool values as true/false
+                    bool dateOnly = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.DateMappingOption") == "1";
+                    bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.WriteBoolPropertyAsN") == "1";
+
+                    // Initialize PropertySync helper class, leverage date and bool conversion options if needed by setting the dateOnly and boolAsInt parameters in the constructor;
+                    PropertySync propertySync = new PropertySync(webServiceManager, dateOnly, boolAsInt);
 
                     // Synchronize properties from CAD file to Vault
                     ACW.PropWriteResults writeResults;
