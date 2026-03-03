@@ -14,23 +14,25 @@ namespace Vault_API_Sample_ManageProperties
 
     /// <summary>
     /// Helper class to manage file properties including updates and synchronization using filestore service.
-    /// This code originally has been posted on the blog Just Ones and Zeros, written by Dave Mink and Doug Redmond.
+    /// Major parts of the code originally have been posted on the blog Just Ones and Zeros, written by Dave Mink and Doug Redmond.
     /// This refactored version combines synchronizing properties and updating property values in one go, but does not guarantee to cover all use cases.
     /// </summary>
     public class ManageProperties
     {
         // property cache used to find date and bool types; Vault options allow to return date without time and bool as 0/1 instead of true/false
         private Dictionary<string, Dictionary<long, ACW.PropDef>> propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
+        // cache file property display name to system name mapping to apply override values based on display names;
         private Dictionary<string, string> filePropDispToSysNames = new Dictionary<string, string>();
+        // options to convert values as configured in the Vault behaviors
         private bool dateOnly = true;
         private bool boolAsInt = false;
+
         private Connection connection;
         private ACWT.WebServiceManager webSrvMgr;
 
         /// <summary>
-        /// Constructor, takes a WebServiceManager as parameter in case we need to make multiple calls to the web services and want to reuse the same manager.
+        /// Constructor, initializing the class leveraging current connection and Vault behavior settings for property value conversion.
         /// </summary>
-        /// <param name="webSrvMgr"></param>
         /// <param name="dateOnly"></param>
         /// <param name="boolAsInt"></param>
         public ManageProperties(Connection connection, bool dateOnly = true, bool boolAsInt = false)
@@ -58,9 +60,8 @@ namespace Vault_API_Sample_ManageProperties
         }
 
         /// <summary>
-        /// Sync properties of a file.
+        /// Sync properties of a file, optionally overriding property values.
         /// </summary>
-        /// <param name="webSrvMgr">a WebServiceManager</param>
         /// <param name="file">the file you would like to sync</param>
         /// <param name="comment">the comment for the new version (if a property sync was performed)</param>
         /// <param name="allowSync">if the local filestore doesn't have the file, get it from another filestore</param>
