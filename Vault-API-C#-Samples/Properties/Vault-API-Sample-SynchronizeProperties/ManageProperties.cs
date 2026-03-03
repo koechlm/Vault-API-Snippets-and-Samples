@@ -1,5 +1,10 @@
-﻿using System;
+using Autodesk.Connectivity.WebServices;
+using Autodesk.DataManagement.Client.Framework.Vault.Currency.Connections;
+using Autodesk.DataManagement.Client.Framework.Vault.Currency.Entities;
+using Autodesk.DataManagement.Client.Framework.Vault.Currency.Properties;
+using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,21 +12,25 @@ using System.Threading.Tasks;
 // Vault SDK
 using ACW = Autodesk.Connectivity.WebServices;
 using ACWT = Autodesk.Connectivity.WebServicesTools;
+using VDF = Autodesk.DataManagement.Client.Framework;
 
-namespace Vault_API_Sample_SynchronizeProperties
+namespace Vault_API_Sample_ManageProperties
 {
 
     /// <summary>
-    /// Helper class to do a property sync using filestore service.
+    /// Helper class to manage file properties including updates and synchronization using filestore service.
     /// This code originally has been posted on the blog Just Ones and Zeros, written by Dave Mink.
     /// This refactored version is adapted to be used as a sample for Vault API, but does not guarantee to cover all use cases.
     /// </summary>
-    public class PropertySync
+    public class ManageProperties
     {
         // property cache used to find date and bool types; Vault options allow to return date without time and bool as 0/1 instead of true/false
-        private Dictionary<string, Dictionary<long, ACW.PropDef>> m_propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
+        private Dictionary<string, Dictionary<long, ACW.PropDef>> propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
+        private Dictionary<string, string> filePropDispToSysNames = new Dictionary<string, string>();
         private bool dateOnly = true;
         private bool boolAsInt = false;
+        private Connection connection;
+        private ACWT.WebServiceManager webSrvMgr;
 
         /// <summary>
         /// Constructor, takes a WebServiceManager as parameter in case we need to make multiple calls to the web services and want to reuse the same manager.
@@ -29,20 +38,104 @@ namespace Vault_API_Sample_SynchronizeProperties
         /// <param name="webSrvMgr"></param>
         /// <param name="dateOnly"></param>
         /// <param name="boolAsInt"></param>
-        public PropertySync(ACWT.WebServiceManager webSrvMgr, bool dateOnly = true, bool boolAsInt = false)
+        public ManageProperties(Connection connection, bool dateOnly = true, bool boolAsInt = false)
         {
             this.dateOnly = dateOnly;
             this.boolAsInt = boolAsInt;
+            this.connection = connection;
+            this.webSrvMgr = connection.WebServiceManager;
 
             // prime the property definition cache with all prop defs for files and items
             foreach (string entityClass in new string[] { "FILE", "ITEM" })
             {
-                m_propDefsByEntityClassAndId.Add(
+                propDefsByEntityClassAndId.Add(
                     entityClass,
                     webSrvMgr.PropertyService.GetPropertyDefinitionsByEntityClassId(entityClass).ToDictionary(pd => pd.Id)
-                    );
+                    );                
+            }
+
+            // cache file property system names to map display names
+            ACW.PropDef[] filePropDefs = webSrvMgr.PropertyService.GetPropertyDefinitionsByEntityClassId("FILE");
+            foreach (ACW.PropDef propDef in filePropDefs)
+            {
+                filePropDispToSysNames[propDef.DispName] = propDef.SysName;
             }
         }
+
+        /// <summary>
+        /// Ensures the file is checked out by the current user. If already checked out by another user, returns false.
+        /// If already checked out by current user or successfully checks out, returns true.
+        /// </summary>
+        /// <param name="webSrvMgr">WebServiceManager instance</param>
+        /// <param name="file">File to check out (will be updated if checkout is performed)</param>
+        /// <param name="comment">Comment for the checkout operation</param>
+        /// <param name="downloadTicket">Output parameter for the download ticket</param>
+        /// <returns>True if file is checked out by current user, false if checked out by someone else</returns>
+        public bool EnsureFileCheckedOut(ACWT.WebServiceManager webSrvMgr, ref ACW.File file, string comment, out ACW.ByteArray downloadTicket)
+        {
+            downloadTicket = null;
+
+            // Check if file is checked out by someone else
+            if (file.CheckedOut == true && file.CkOutUserId != webSrvMgr.AuthService.Session.User.Id)
+            {
+                return false; // can't check out since file is already checked out by someone else
+            }
+
+            // If file is already checked out by current user, get the download ticket
+            if (file.CheckedOut == true && file.CkOutUserId == webSrvMgr.AuthService.Session.User.Id)
+            {
+                downloadTicket = webSrvMgr.DocumentService.GetDownloadTicketsByFileIds(new long[] { file.Id }).FirstOrDefault();
+                return true;
+            }
+
+            // File is not checked out, perform checkout
+            if (file.CheckedOut == false)
+            {
+                file = webSrvMgr.DocumentService.CheckoutFile(
+                    file.Id, ACW.CheckoutFileOptions.Master,
+                    /*machine*/Environment.MachineName, /*localPath*/string.Empty, comment,
+                    out downloadTicket
+                    );
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Gets file associations to preserve them during check-in operations.
+        /// </summary>
+        /// <param name="webSrvMgr">WebServiceManager instance</param>
+        /// <param name="file">File to get associations for</param>
+        /// <returns>Array of FileAssocParam for use in check-in operations</returns>
+        private ACW.FileAssocParam[] GetFileAssociations(ACWT.WebServiceManager webSrvMgr, ACW.File file)
+        {
+            // get child file associations so we can preserve them.
+            ACW.FileAssocLite[] childAssocs = webSrvMgr.DocumentService.GetFileAssociationLitesByIds(
+                new long[] { file.Id },
+                ACW.FileAssocAlg.Actual, // preserve the associations provided by CAD add-in
+                /*parentAssociationType*/ACW.FileAssociationTypeEnum.None, /*parentRecurse*/false,
+                /*childAssociationType*/ACW.FileAssociationTypeEnum.All, /*childRecurse*/false,
+                /*includeLibraryFiles*/true,
+                /*includeRelatedDocuments*/false,
+                /*includeHidden*/true
+                );
+
+            // convert FileAssocLite array to FileAssocParam array
+            ACW.FileAssocParam[] associations = childAssocs.Select(
+                a => new ACW.FileAssocParam()
+                {
+                    Typ = a.Typ,
+                    CldFileId = a.CldFileId,
+                    Source = a.Source,
+                    RefId = a.RefId,
+                    ExpectedVaultPath = a.ExpectedVaultPath
+                }
+                ).ToArray();
+
+            return associations;
+        }
+
 
         /// <summary>
         /// Sync properties of a file.
@@ -54,8 +147,10 @@ namespace Vault_API_Sample_SynchronizeProperties
         /// <param name="writeResults">see FilestoreService.CopyFile method</param>
         /// <param name="cloakedEntityClasses">if you can't read an entity where properties would come from, its entity class is returned here</param>
         /// <param name="force">skip check for equivalence and always do a sync, creating a new version</param>
+        /// <param name="overridePropValues">a dictionary of property display names and their override values</param>
         /// <returns>the file returned from the checkin, same as the input if no property sync is done</returns>
-        public ACW.File SyncProperties(ACWT.WebServiceManager webSrvMgr, ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults, out string[] cloakedEntityClasses, bool force = false)
+        public ACW.File SyncProperties(ACWT.WebServiceManager webSrvMgr, ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults, 
+            out string[] cloakedEntityClasses, bool force = false, Dictionary<string, string> overridePropValues = null)
         {
             //Get the binary data for the file to be synced from the filestore service.
             ACW.ByteArray downloadTicket = null;
@@ -64,9 +159,8 @@ namespace Vault_API_Sample_SynchronizeProperties
             writeResults = null;
             cloakedEntityClasses = null;
 
-            // first check for property compliance failures.
-            // We don't need to sync unless there are equivalence failures.
-            if (!force) // skip this fast-out if we are forcing a sync.
+            // synchronization is needed if there are compliance failures or if overridePropValues are provided;
+            if (!force && (overridePropValues == null || overridePropValues.Count == 0))
             {
                 // NOTE: if we synced props to multiple files at a time, we could get compliance failures for all of them in one call.
                 ACW.PropCompFail[] complianceFailures = webSrvMgr.PropertyService.GetPropertyComplianceFailuresByEntityIds(
@@ -81,23 +175,11 @@ namespace Vault_API_Sample_SynchronizeProperties
                 }
             }
 
-            // checkout file without downloading it.            
-            if (file.CheckedOut == true && file.CkOutUserId != webSrvMgr.AuthService.Session.User.Id)
+            // Use the shared checkout logic
+            if (!EnsureFileCheckedOut(webSrvMgr, ref file, comment, out downloadTicket))
             {
-                return file; // can't sync since file is already checked out by someone else, return without doing anything
-            }
-            if (file.CheckedOut == true && file.CkOutUserId == webSrvMgr.AuthService.Session.User.Id)
-            {
-                // file is already checked out by current user, proceed with sync and eventual checkin
-                downloadTicket = webSrvMgr.DocumentService.GetDownloadTicketsByFileIds(new long[] { file.Id }).FirstOrDefault();
-            }
-            if (file.CheckedOut == false)
-            {
-                file = webSrvMgr.DocumentService.CheckoutFile(
-                    file.Id, ACW.CheckoutFileOptions.Master,
-                    /*machine*/Environment.MachineName, /*localPath*/string.Empty, comment,
-                    out downloadTicket
-                    );
+                // File is checked out by someone else, cannot proceed
+                return file;
             }
 
             try // if anything goes wrong from here on out, undo the checkout
@@ -137,9 +219,49 @@ namespace Vault_API_Sample_SynchronizeProperties
                         Moniker = p.Moniker,
                         CanCreate = p.CreateNew,
                         // convert property value based on property type and conversion options for date and bool types.
-                        Val = ConvertPropertyValue(p, m_propDefsByEntityClassAndId[p.EntClassId][p.PropDefId].Typ)
+                        Val = ConvertPropertyValue(p, propDefsByEntityClassAndId[p.EntClassId][p.PropDefId].Typ)
                     }
                     ).ToArray();
+
+                // retrieve the file property definitions to check for write mappings.
+                CtntSrcPropDef[] fileProps = webSrvMgr.FilestoreService.GetContentSourcePropertyDefinitions(
+                downloadTicket.Bytes, true).Where(p => p.MapDirection == AllowedMappingDirection.Write || p.MapDirection == AllowedMappingDirection.ReadAndWrite).ToArray();
+
+                List<PropertyDefinition> vdfPropDefs = new List<PropertyDefinition>();
+
+                /// key is the mapping moniker, value is the property definition system name; we will use this to match the properties from the file with the property definitions in Vault to make sure we are only trying to sync properties that have mappings configured, and to get the correct system names for the properties to apply the override values if needed.
+                Dictionary<string, string> propMonikers = new Dictionary<string, string>();
+
+                foreach (string name in overridePropValues.Keys)
+                {
+                    string sysName = filePropDispToSysNames.ContainsKey(name) ? filePropDispToSysNames[name] : name;
+                    vdfPropDefs.Add(connection.PropertyManager.GetPropertyDefinitionBySystemName(sysName));
+                }
+                foreach (PropertyDefinition definition in vdfPropDefs)
+                {
+                    if (definition.Mappings.HasMappings == true)
+                    {
+                        foreach (var mapping in definition.Mappings.GetAllContentSourcePropertyMapping())
+                        {
+                            // add all monikers to the list, where the fileProps' moniker matches the definition's mapping moniker
+                            string mappingMoniker = mapping.ContentPropertyDefinition.Moniker;
+                            if (fileProps.Any(fp => fp.Moniker == mappingMoniker))
+                            {
+                                propMonikers[mappingMoniker] = definition.DisplayName;
+                            }
+                        }
+                    }
+                }
+
+                // update the writeProps with the monikers from the mappings; if a property doesn't have a mapping, it won't be included in the sync, so we can skip it.
+                foreach (ACW.PropWriteReq writeReq in writeProps)
+                {
+                    if (propMonikers.ContainsKey(writeReq.Moniker))
+                    {
+                        string dispName = propMonikers[writeReq.Moniker];
+                        writeReq.Val = overridePropValues[dispName];
+                    }
+                }
 
                 ACW.PropWriteRequests writePropsReq = new ACW.PropWriteRequests();
                 writePropsReq.Requests = writeProps;
@@ -150,28 +272,9 @@ namespace Vault_API_Sample_SynchronizeProperties
                     out writeResults
                     );
 
-                // get child file associations so we can preserve them.
-                // NOTE: if we synced props to multiple files at a time, we could get file associations for all of them in one call.
-                ACW.FileAssocLite[] childAssocs = webSrvMgr.DocumentService.GetFileAssociationLitesByIds(
-                    new long[] { file.Id },
-                    ACW.FileAssocAlg.Actual, // preserve the associations provided by CAD add-in
-                    /*parentAssociationType*/ACW.FileAssociationTypeEnum.None, /*parentRecurse*/false,
-                    /*childAssociationType*/ACW.FileAssociationTypeEnum.All, /*childRecurse*/false,
-                    /*includeLibraryFiles*/true,
-                    /*includeRelatedDocuments*/false,
-                    /*includeHidden*/true
-                    );
-                // convert FileAssocLite array to FileAssocParam array
-                ACW.FileAssocParam[] associations = childAssocs.Select(
-                    a => new ACW.FileAssocParam()
-                    {
-                        Typ = a.Typ,
-                        CldFileId = a.CldFileId,
-                        Source = a.Source,
-                        RefId = a.RefId,
-                        ExpectedVaultPath = a.ExpectedVaultPath
-                    }
-                    ).ToArray();
+                // Get file associations to preserve them
+                ACW.FileAssocParam[] associations = GetFileAssociations(webSrvMgr, file);
+
                 // checkin file
                 file = webSrvMgr.DocumentService.CheckinUploadedFile(
                     file.MasterId,
