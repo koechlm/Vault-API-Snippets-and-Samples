@@ -80,7 +80,7 @@ namespace Vault_API_Sample_ManageProperties
             writeResults = null;
             cloakedEntityClasses = null;
 
-            // synchronization is needed if there are compliance failures or if overridePropValues are provided;
+            // synchronization is needed if there are compliance failures or if newPropValues are provided;
             if (!force && (overridePropValues == null || overridePropValues.Count == 0))
             {
                 // NOTE: if we synced props to multiple files at a time, we could get compliance failures for all of them in one call.
@@ -109,8 +109,13 @@ namespace Vault_API_Sample_ManageProperties
                 // NOTE: a null component UID means to get write-back properties for root component in the file.
                 // WARNING: we can't sync component level properties without CAD!
                 ACW.CompProp[] compProps = webSrvMgr.DocumentService.GetComponentProperties(file.Id, /*compUID*/null);
+                if (compProps == null || compProps.Length == 0)
+                {
+                    // no component properties found, undo checkout and return
+                    return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
+                }
 
-                // return cloaked entity classes thru out parameter.
+                // return cloaked entity classes
                 // NOTE: a propDefId of -1 indicates get couldn't get properties from an inaccessible entity.
                 cloakedEntityClasses = compProps.Where(p => p.PropDefId < 0).Select(p => p.EntClassId).ToArray();
                 if (cloakedEntityClasses != null && cloakedEntityClasses.Length > 0)
@@ -221,6 +226,80 @@ namespace Vault_API_Sample_ManageProperties
             return file;
         }
 
+
+
+        /// <summary>
+        /// Update UDPs of unmapped file properties
+        /// </summary>
+        /// <param name="file">File Iteration</param>
+        /// <param name="newPropValues">Dictionary of new property values</param>
+        /// <returns>Updated file</returns>
+        public ACW.File UpdateProperties(ACW.File file, Dictionary<string, string> newPropValues)
+        {
+            ACW.ByteArray downloadTicket = null;
+
+            ACW.File currentFile = null;
+            ACW.File updatedFile = null;
+            // Checkout the file to be updated without downloading it
+            currentFile = webSrvMgr.DocumentService.CheckoutFile(
+                file.Id, ACW.CheckoutFileOptions.Master,
+                /*machine*/Environment.MachineName, /*localPath*/string.Empty, /*comment*/string.Empty,
+                out downloadTicket
+                );
+
+            // build the propinstance array for the properties to update based on the input dictionary and the property definitions for the file.
+            List<PropInstParam> propInstParams = new List<PropInstParam>();
+            PropInstParamArray propInstParamArray = new PropInstParamArray();
+            foreach (var kvp in newPropValues)
+            {
+                string dispName = kvp.Key;
+                string value = kvp.Value;
+                if (filePropDispToSysNames.TryGetValue(dispName, out string sysName))
+                {
+                    PropertyDefinition propDef = connection.PropertyManager.GetPropertyDefinitionBySystemName(sysName);
+                    if (propDef != null)
+                    {
+                        PropInstParam propInstParam = new PropInstParam()
+                        {
+                            PropDefId = propDef.Id,
+                            Val = value
+                        };
+                        propInstParams.Add(propInstParam);
+                    }
+                }
+                propInstParamArray.Items = propInstParams.ToArray();
+            }
+
+            // update unmapped properties using DocumentService.UpdateFileProperties
+            webSrvMgr.DocumentService.UpdateFileProperties(new long[] { currentFile.MasterId}, new PropInstParamArray[] { propInstParamArray });
+            
+            // get the upload ticket for the current file by copying it
+            ACW.PropWriteRequests writePropsReq = new ACW.PropWriteRequests();
+            writePropsReq.Requests = null;
+            writePropsReq.Bom = null;
+            byte[] uploadTicket = null;
+            // use CopyFile to copy existing resource and write the properties.
+            uploadTicket = webSrvMgr.FilestoreService.CopyFile(
+                downloadTicket.Bytes, null, allowSync:true, writePropsReq,
+                out _
+                );
+
+            // Get file associations to preserve them
+            ACW.FileAssocParam[] associations = GetFileAssociations(webSrvMgr, file);
+
+            // checkin file
+            updatedFile = webSrvMgr.DocumentService.CheckinUploadedFile(
+                file.MasterId,
+                "Property Updated via API Sample", /*keepCheckedOut*/false, /*lastWrite*/DateTime.Now,
+                associations,
+                /*bom*/null, /*copyBom*/true, // preserve any BOM
+                file.Name, file.FileClass, file.Hidden, // preserve these attributes
+                new ACW.ByteArray() { Bytes = uploadTicket }
+                );
+
+            return updatedFile;
+        }
+
         /// <summary>
         /// Ensures the file is checked out by the current user. If already checked out by another user, returns false.
         /// If already checked out by current user or successfully checks out, returns true.
@@ -230,7 +309,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="comment">Comment for the checkout operation</param>
         /// <param name="downloadTicket">Output parameter for the download ticket</param>
         /// <returns>True if file is checked out by current user, false if checked out by someone else</returns>
-        private bool EnsureFileCheckedOut(ACWT.WebServiceManager webSrvMgr, ref ACW.File file, string comment, out ACW.ByteArray downloadTicket)
+        public bool EnsureFileCheckedOut(ACWT.WebServiceManager webSrvMgr, ref ACW.File file, string comment, out ACW.ByteArray downloadTicket)
         {
             downloadTicket = null;
 

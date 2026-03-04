@@ -67,8 +67,18 @@ namespace Vault_API_Sample_ManageProperties
                     bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.WriteBoolPropertyAsN") == "1";
 
                     // Initialize PropertySync helper class, leverage date and bool conversion options if needed by setting the dateOnly and boolAsInt parameters in the constructor;
-                    ManageProperties propertySync = new ManageProperties(connection, dateOnly, boolAsInt);
+                    ManageProperties manageProps = new ManageProperties(connection, dateOnly, boolAsInt);
                     Dictionary<string, string> newPropValues = null;
+
+                    newPropValues = new Dictionary<string, string>()
+                    {
+                        { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
+                        { "Volume", DateTime.Now.ToShortTimeString() }
+                    };
+
+                    manageProps.UpdateProperties(file, newPropValues);
+
+                    return;
 
                     // Prompt to update property values before synchronization; this allows the user to test the property sync with custom values if desired; if the user just presses enter, the sample will proceed with default property values defined in the ManageProperties class
                     Console.WriteLine("Do you want to update property values before synchronization? (y/n, press Enter for default 'n')");
@@ -84,7 +94,7 @@ namespace Vault_API_Sample_ManageProperties
 
                     Console.WriteLine("Synchronizing properties...");
                     
-                    ACW.File updatedFile = propertySync.SyncProperties(
+                    ACW.File updatedFile = manageProps.SyncProperties(
                         file,
                         "Property sync via API sample",
                         allowSync: true,
