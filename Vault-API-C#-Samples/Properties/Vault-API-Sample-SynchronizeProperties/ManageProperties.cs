@@ -1,4 +1,5 @@
 using Autodesk.Connectivity.WebServices;
+using Autodesk.Connectivity.WebServicesTools;
 using Autodesk.DataManagement.Client.Framework.Vault.Currency.Connections;
 using Autodesk.DataManagement.Client.Framework.Vault.Currency.Properties;
 using System;
@@ -8,6 +9,7 @@ using System.Linq;
 // Vault SDK
 using ACW = Autodesk.Connectivity.WebServices;
 using ACWT = Autodesk.Connectivity.WebServicesTools;
+using VDF = Autodesk.DataManagement.Client.Framework;
 
 namespace Vault_API_Sample_ManageProperties
 {
@@ -15,20 +17,20 @@ namespace Vault_API_Sample_ManageProperties
     /// <summary>
     /// Helper class to manage file properties including updates and synchronization using filestore service.
     /// Major parts of the code originally have been posted on the blog Just Ones and Zeros, written by Dave Mink and Doug Redmond.
-    /// This refactored version combines synchronizing properties and updating property values in one go, but does not guarantee to cover all use cases.
+    /// This refactored version combines synchronizing properties and updating property providerPropInst in one go, but does not guarantee to cover all use cases.
     /// </summary>
     public class ManageProperties
     {
         // property cache used to find date and bool types; Vault options allow to return date without time and bool as 0/1 instead of true/false
         private Dictionary<string, Dictionary<long, ACW.PropDef>> propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
-        // cache file property display name to system name mapping to apply override values based on display names;
+        // cache file property display name to system name mapping to apply override providerPropInst based on display names;
         private Dictionary<string, string> filePropDispToSysNames = new Dictionary<string, string>();
-        // options to convert values as configured in the Vault behaviors
+        // options to convert providerPropInst as configured in the Vault behaviors
         private bool dateOnly = true;
         private bool boolAsInt = false;
 
         private Connection connection;
-        private ACWT.WebServiceManager webSrvMgr;
+        private WebServiceManager webSrvMgr;
 
         /// <summary>
         /// Constructor, initializing the class leveraging current connection and Vault behavior settings for property value conversion.
@@ -48,7 +50,7 @@ namespace Vault_API_Sample_ManageProperties
                 propDefsByEntityClassAndId.Add(
                     entityClass,
                     webSrvMgr.PropertyService.GetPropertyDefinitionsByEntityClassId(entityClass).ToDictionary(pd => pd.Id)
-                    );                
+                    );
             }
 
             // cache file property system names to map display names
@@ -59,8 +61,84 @@ namespace Vault_API_Sample_ManageProperties
             }
         }
 
+        public ACW.File UpdateFileProperties(ACW.File file, Dictionary<string, string> newPropValues)
+        {
+            // we need to split the properties in mapped and unmapped ones, because mapped properties need to be updated through the filestore service
+            // write to file process, while unmapped properties can be updated directly through the DocumentService.UpdateFileProperties
+            Dictionary<string, string> mappedPropValues = new Dictionary<string, string>();
+            Dictionary<string, string> unmappedPropValues = new Dictionary<string, string>();
+
+            // we need to get provider for the current file because a property might be mapped to multiple providers,
+            IEnumerable<PropDefInfo> propDefInfos = webSrvMgr.PropertyService.GetPropertyDefinitionInfosByEntityClassId("FILE", null);
+            PropDefInfo providerPropDefInfo = propDefInfos.Where(p => p.PropDef.SysName == "Provider").FirstOrDefault();
+            PropInst providerPropInst = webSrvMgr.PropertyService.GetProperties("FILE", new long[] { file.Id }, new long[] { providerPropDefInfo.PropDef.Id }).FirstOrDefault();
+
+            string providerName = (string)providerPropInst.Val;
+
+            ServerCfg srvConfig = webSrvMgr.AdminService.GetServerConfiguration();
+            IEnumerable<CtntSrc> providers = srvConfig.CtntSrcArray.Where(source => source.DispName == providerName);
+
+            if (providers.Count() == 0)
+                providers = srvConfig.CtntSrcArray.Where(source => source.SysName == "IFilter");
+
+            CtntSrc provider = providers.FirstOrDefault();
+
+            foreach (var kvp in newPropValues)
+            {
+                string dispName = kvp.Key;
+                string value = kvp.Value;
+                if (filePropDispToSysNames.TryGetValue(dispName, out string sysName))
+                {
+                    PropertyDefinition propDef = connection.PropertyManager.GetPropertyDefinitionBySystemName(sysName);
+                    if (propDef != null)
+                    {
+                        IEnumerable<PropDefInfo> results = propDefInfos.Where(prop => prop.PropDef.Id == propDef.Id);
+                        PropDefInfo propDefInfo = results.First();
+
+                        if (propDefInfo.EntClassCtntSrcPropCfgArray != null)
+                        {
+                            foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
+                            {
+                                if (contentSource.EntClassId != "FILE" || contentSource.CtntSrcPropDefArray == null)
+                                    continue;
+
+                                foreach (CtntSrcPropDef propDefMapping in contentSource.CtntSrcPropDefArray)
+                                {
+                                    for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
+                                    {
+                                        if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
+                                        {
+                                            // this property is mapped to the provider of the file, check if it allows write
+                                            if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                                            {
+                                                // this property is mapped to the provider of the file and allows write, so we need to update it through the filestore service write to file process
+                                                mappedPropValues[dispName] = value;
+                                            }
+                                        }
+                                        else // this property is mapped to other providers, so we handle it like an unmapped property
+                                        {
+                                            unmappedPropValues[dispName] = value;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // no mapping for this property, update directly
+                            unmappedPropValues[dispName] = value;
+                        }
+                    }
+                }
+            }
+
+            file = UpdateProperties(file, unmappedPropValues);
+            file = SyncProperties(file, "Updated properties via API sample", allowSync: true, out _, out _, force: false, overridePropValues: mappedPropValues);
+            return file;
+        }
+
         /// <summary>
-        /// Sync properties of a file, optionally overriding property values.
+        /// Sync properties of a file, optionally overriding property providerPropInst.
         /// </summary>
         /// <param name="file">the file you would like to sync</param>
         /// <param name="comment">the comment for the new version (if a property sync was performed)</param>
@@ -68,7 +146,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="writeResults">see FilestoreService.CopyFile method</param>
         /// <param name="cloakedEntityClasses">if you can't read an entity where properties would come from, its entity class is returned here</param>
         /// <param name="force">skip check for equivalence and always do a sync, creating a new version</param>
-        /// <param name="overridePropValues">a dictionary of property display names and their override values</param>
+        /// <param name="overridePropValues">a dictionary of property display names and their override providerPropInst</param>
         /// <returns>the file returned from the checkin, same as the input if no property sync is done</returns>
         public ACW.File SyncProperties(ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults,
             out string[] cloakedEntityClasses, bool force = false, Dictionary<string, string> overridePropValues = null)
@@ -123,9 +201,10 @@ namespace Vault_API_Sample_ManageProperties
                     // don't proceed since we don't have the permissions to write back 
                     // everything that is necessary to clear the failures.
                     return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
+                    
                 }
 
-                // filter so we only keep values from non-cloaked entities
+                // filter so we only keep providerPropInst from non-cloaked entities
                 // NOTE: this is unnecessary as long as we bail out if there are cloaked entities involved.
                 compProps = compProps.Where(p => p.PropDefId > 0).ToArray();
 
@@ -135,7 +214,7 @@ namespace Vault_API_Sample_ManageProperties
                 if (compProps == null || compProps.Length == 0)
                 {
                     // nothing to do, undo checkout and return
-                    return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
+                    return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);                    
                 }
 
                 // convert CompProp array to PropWriteReq array.
@@ -155,7 +234,7 @@ namespace Vault_API_Sample_ManageProperties
 
                 List<PropertyDefinition> vdfPropDefs = new List<PropertyDefinition>();
 
-                /// key is the mapping moniker, value is the property definition system name; we will use this to match the properties from the file with the property definitions in Vault to make sure we are only trying to sync properties that have mappings configured, and to get the correct system names for the properties to apply the override values if needed.
+                /// key is the mapping moniker, value is the property definition system name; we will use this to match the properties from the file with the property definitions in Vault to make sure we are only trying to sync properties that have mappings configured, and to get the correct system names for the properties to apply the override providerPropInst if needed.
                 Dictionary<string, string> propMonikers = new Dictionary<string, string>();
 
                 foreach (string name in overridePropValues.Keys)
@@ -232,7 +311,7 @@ namespace Vault_API_Sample_ManageProperties
         /// Update UDPs of unmapped file properties
         /// </summary>
         /// <param name="file">File Iteration</param>
-        /// <param name="newPropValues">Dictionary of new property values</param>
+        /// <param name="newPropValues">Dictionary of new property providerPropInst</param>
         /// <returns>Updated file</returns>
         public ACW.File UpdateProperties(ACW.File file, Dictionary<string, string> newPropValues)
         {
@@ -271,8 +350,8 @@ namespace Vault_API_Sample_ManageProperties
             }
 
             // update unmapped properties using DocumentService.UpdateFileProperties
-            webSrvMgr.DocumentService.UpdateFileProperties(new long[] { currentFile.MasterId}, new PropInstParamArray[] { propInstParamArray });
-            
+            webSrvMgr.DocumentService.UpdateFileProperties(new long[] { currentFile.MasterId }, new PropInstParamArray[] { propInstParamArray });
+
             // get the upload ticket for the current file by copying it
             ACW.PropWriteRequests writePropsReq = new ACW.PropWriteRequests();
             writePropsReq.Requests = null;
@@ -280,7 +359,7 @@ namespace Vault_API_Sample_ManageProperties
             byte[] uploadTicket = null;
             // use CopyFile to copy existing resource and write the properties.
             uploadTicket = webSrvMgr.FilestoreService.CopyFile(
-                downloadTicket.Bytes, null, allowSync:true, writePropsReq,
+                downloadTicket.Bytes, null, allowSync: true, writePropsReq,
                 out _
                 );
 

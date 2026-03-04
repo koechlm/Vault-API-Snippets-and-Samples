@@ -73,10 +73,10 @@ namespace Vault_API_Sample_ManageProperties
                     newPropValues = new Dictionary<string, string>()
                     {
                         { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
-                        { "Volume", DateTime.Now.ToShortTimeString() }
+                        { "Title", "NOW=" + DateTime.Now.ToShortTimeString() }
                     };
 
-                    manageProps.UpdateProperties(file, newPropValues);
+                    manageProps.UpdateFileProperties(file, newPropValues);
 
                     return;
 
@@ -93,7 +93,7 @@ namespace Vault_API_Sample_ManageProperties
                     string[] cloakedEntityClasses;
 
                     Console.WriteLine("Synchronizing properties...");
-                    
+
                     ACW.File updatedFile = manageProps.SyncProperties(
                         file,
                         "Property sync via API sample",
@@ -112,7 +112,7 @@ namespace Vault_API_Sample_ManageProperties
                     {
                         Console.WriteLine($"Property sync completed successfully!");
                         Console.WriteLine($"New version: {updatedFile.VerNum}");
-                        
+
                         if (writeResults != null)
                         {
                             Console.WriteLine($"Properties written: {writeResults.Results?.Length ?? 0}");
@@ -128,7 +128,7 @@ namespace Vault_API_Sample_ManageProperties
                 {
                     throw ex;
                 }
-               
+
             }
             catch (Exception ex)
             {
