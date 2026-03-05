@@ -17,8 +17,10 @@ namespace Vault_API_Sample_ManageProperties
     /// <summary>
     /// Helper class to manage file properties including updates and synchronization using filestore service.
     /// Major parts of the code originally have been posted on the blog Just Ones and Zeros, written by Dave Mink and Doug Redmond.
-    /// This refactored version combines synchronizing properties and updating property values in one go.
-    /// Use this class as a sample while being aware that it does not guarantee to cover all use cases.
+    /// This refactored version combines synchronizing properties and updating property values in one go. Blog samples focused on 
+    /// demonstrating the principles. This version is closer to production quality code with better error handling, optimizations 
+    /// like caching property definitions and server configuration, and handling edge cases. Anyway treat this code as a sample and not a production-ready utility, 
+    /// as it does not guarantee to cover all use cases.
     /// </summary>
     public class ManageProperties
     {
@@ -26,6 +28,10 @@ namespace Vault_API_Sample_ManageProperties
         private Dictionary<string, Dictionary<long, ACW.PropDef>> propDefsByEntityClassAndId = new Dictionary<string, Dictionary<long, ACW.PropDef>>();
         // cache file property display name to system name mapping to apply override providerPropInst based on display names;
         private Dictionary<string, string> filePropDispToSysNames = new Dictionary<string, string>();
+        // cache property definition infos to avoid repeated API calls
+        private Dictionary<string, IEnumerable<PropDefInfo>> propDefInfosByEntityClass = new Dictionary<string, IEnumerable<PropDefInfo>>();
+        // cache server configuration
+        private ServerCfg serverConfig = null;
         // options to convert providerPropInst as configured in the Vault behaviors
         private bool dateOnly = true;
         private bool boolAsInt = false;
@@ -54,6 +60,11 @@ namespace Vault_API_Sample_ManageProperties
                     entityClass,
                     webSrvMgr.PropertyService.GetPropertyDefinitionsByEntityClassId(entityClass).ToDictionary(pd => pd.Id)
                     );
+                // Cache property definition infos for reuse
+                propDefInfosByEntityClass.Add(
+                    entityClass,
+                    webSrvMgr.PropertyService.GetPropertyDefinitionInfosByEntityClassId(entityClass, null)
+                    );
             }
 
             // cache file property system names to map display names
@@ -62,6 +73,9 @@ namespace Vault_API_Sample_ManageProperties
             {
                 filePropDispToSysNames[propDef.DispName] = propDef.SysName;
             }
+
+            // Cache server configuration
+            serverConfig = webSrvMgr.AdminService.GetServerConfiguration();
         }
 
         public ACW.File UpdateFileProperties(ACW.File file, string comment, bool allowSync, Dictionary<ACW.PropDef, object> newPropValues, 
@@ -72,61 +86,75 @@ namespace Vault_API_Sample_ManageProperties
             Dictionary<ACW.PropDef, object> mappedPropValues = new Dictionary<ACW.PropDef, object>();
             Dictionary<ACW.PropDef, object> unmappedPropValues = new Dictionary<ACW.PropDef, object>();
 
-            // we need to get provider for the current file because a property might be mapped to multiple providers,
-            IEnumerable<PropDefInfo> propDefInfos = webSrvMgr.PropertyService.GetPropertyDefinitionInfosByEntityClassId("FILE", null);
-            PropDefInfo providerPropDefInfo = propDefInfos.Where(p => p.PropDef.SysName == "Provider").FirstOrDefault();
-            PropInst providerPropInst = webSrvMgr.PropertyService.GetProperties("FILE", new long[] { file.Id }, new long[] { providerPropDefInfo.PropDef.Id }).FirstOrDefault();
-
-            string providerName = (string)providerPropInst.Val;
-
-            ServerCfg srvConfig = webSrvMgr.AdminService.GetServerConfiguration();
-            IEnumerable<CtntSrc> providers = srvConfig.CtntSrcArray.Where(source => source.DispName == providerName);
-
-            if (providers.Count() == 0)
-                providers = srvConfig.CtntSrcArray.Where(source => source.SysName == "IFilter");
-
-            CtntSrc provider = providers.FirstOrDefault();
-
-            foreach (var kvp in newPropValues)
+            // Use cached property definition infos
+            IEnumerable<PropDefInfo> propDefInfos = propDefInfosByEntityClass["FILE"];
+            
+            // Get provider for the current file - batch this with a single API call
+            PropDefInfo providerPropDefInfo = propDefInfos.FirstOrDefault(p => p.PropDef.SysName == "Provider");
+            if (providerPropDefInfo == null)
             {
-                ACW.PropDef propDef = kvp.Key;
-                object value = kvp.Value;
-                
-                PropertyDefinition vdfPropDef = connection.PropertyManager.GetPropertyDefinitionBySystemName(propDef.SysName);
-                if (vdfPropDef != null)
+                // No provider property, treat all as unmapped
+                foreach (var kvp in newPropValues)
                 {
-                    IEnumerable<PropDefInfo> results = propDefInfos.Where(prop => prop.PropDef.Id == vdfPropDef.Id);
-                    PropDefInfo propDefInfo = results.FirstOrDefault();
+                    unmappedPropValues[kvp.Key] = kvp.Value;
+                }
+            }
+            else
+            {
+                PropInst providerPropInst = webSrvMgr.PropertyService.GetProperties("FILE", new long[] { file.Id }, new long[] { providerPropDefInfo.PropDef.Id }).FirstOrDefault();
+                string providerName = (string)providerPropInst.Val;
 
-                    if (propDefInfo?.EntClassCtntSrcPropCfgArray != null)
+                // Use cached server configuration
+                IEnumerable<CtntSrc> providers = serverConfig.CtntSrcArray.Where(source => source.DispName == providerName);
+
+                if (providers.Count() == 0)
+                    providers = serverConfig.CtntSrcArray.Where(source => source.SysName == "IFilter");
+
+                CtntSrc provider = providers.FirstOrDefault();
+
+                // Build a dictionary of PropDef.Id to PropDefInfo for faster lookup
+                Dictionary<long, PropDefInfo> propDefInfoById = propDefInfos.ToDictionary(pdi => pdi.PropDef.Id);
+
+                foreach (var kvp in newPropValues)
+                {
+                    ACW.PropDef propDef = kvp.Key;
+                    object value = kvp.Value;
+
+                    // Direct lookup instead of LINQ query for better performance
+                    if (propDefInfoById.TryGetValue(propDef.Id, out PropDefInfo propDefInfo))
                     {
-                        foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
-                        {
-                            if (contentSource.EntClassId != "FILE" || contentSource.CtntSrcPropDefArray == null)
-                                continue;
+                        bool isMapped = false;
 
-                            for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
+                        if (propDefInfo.EntClassCtntSrcPropCfgArray != null)
+                        {
+                            foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
                             {
-                                if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
+                                if (contentSource.EntClassId != "FILE" || contentSource.CtntSrcPropDefArray == null)
+                                    continue;
+
+                                for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
                                 {
-                                    // this property is mapped to the provider of the file, check if it allows write
-                                    if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                                    if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
                                     {
-                                        // this property is mapped to the provider of the file and allows write, so we need to update it through the filestore service write to file process
-                                        mappedPropValues[propDef] = value;
+                                        // this property is mapped to the provider of the file, check if it allows write
+                                        if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                                        {
+                                            mappedPropValues[propDef] = value;
+                                            isMapped = true;
+                                            break;
+                                        }
                                     }
                                 }
-                                else // this property is mapped to other providers, so we handle it like an unmapped property
-                                {
-                                    unmappedPropValues[propDef] = value;
-                                }
+
+                                if (isMapped) break;
                             }
                         }
-                    }
-                    else
-                    {
-                        // no mapping for this property, update directly
-                        unmappedPropValues[propDef] = value;
+
+                        if (!isMapped)
+                        {
+                            // no mapping for this property, update directly
+                            unmappedPropValues[propDef] = value;
+                        }
                     }
                 }
             }
@@ -237,19 +265,34 @@ namespace Vault_API_Sample_ManageProperties
                 // Build moniker to property definition mapping for override values
                 Dictionary<string, ACW.PropDef> propMonikers = new Dictionary<string, ACW.PropDef>();
 
-                foreach (var kvp in overridePropValues)
+                if (overridePropValues != null && overridePropValues.Count > 0)
                 {
-                    ACW.PropDef propDef = kvp.Key;
-                    PropertyDefinition vdfPropDef = connection.PropertyManager.GetPropertyDefinitionBySystemName(propDef.SysName);
-                    
-                    if (vdfPropDef?.Mappings.HasMappings == true)
+                    // Create a HashSet of file property monikers for faster lookup
+                    HashSet<string> filePropMonikers = new HashSet<string>(fileProps.Select(fp => fp.Moniker));
+
+                    foreach (var kvp in overridePropValues)
                     {
-                        foreach (var mapping in vdfPropDef.Mappings.GetAllContentSourcePropertyMapping())
+                        ACW.PropDef propDef = kvp.Key;
+                        
+                        // Use cached property definition info instead of creating new VDF PropertyDefinition
+                        PropDefInfo propDefInfo = propDefInfosByEntityClass["FILE"].FirstOrDefault(pdi => pdi.PropDef.Id == propDef.Id);
+                        
+                        if (propDefInfo?.EntClassCtntSrcPropCfgArray != null)
                         {
-                            string mappingMoniker = mapping.ContentPropertyDefinition.Moniker;
-                            if (fileProps.Any(fp => fp.Moniker == mappingMoniker))
+                            foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
                             {
-                                propMonikers[mappingMoniker] = propDef;
+                                if (contentSource.CtntSrcPropDefArray != null)
+                                {
+                                    foreach (CtntSrcPropDef ctntSrcPropDef in contentSource.CtntSrcPropDefArray)
+                                    {
+                                        string mappingMoniker = ctntSrcPropDef.Moniker;
+                                        // Use HashSet for O(1) lookup instead of LINQ Any
+                                        if (filePropMonikers.Contains(mappingMoniker))
+                                        {
+                                            propMonikers[mappingMoniker] = propDef;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

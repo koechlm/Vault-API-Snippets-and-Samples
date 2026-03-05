@@ -67,6 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="ManageProperties.md" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\AdskLicensingSDK_9.dll">
