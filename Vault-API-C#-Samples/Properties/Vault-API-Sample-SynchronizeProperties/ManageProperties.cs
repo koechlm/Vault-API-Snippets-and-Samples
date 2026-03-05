@@ -353,14 +353,15 @@ namespace Vault_API_Sample_ManageProperties
         {
             ACW.ByteArray downloadTicket = null;
 
-            ACW.File currentFile = null;
+            ACW.File currentFile = file;
             ACW.File updatedFile = null;
-            // Checkout the file to be updated without downloading it
-            currentFile = webSrvMgr.DocumentService.CheckoutFile(
-                file.Id, ACW.CheckoutFileOptions.Master,
-                /*machine*/Environment.MachineName, /*localPath*/string.Empty, /*comment*/string.Empty,
-                out downloadTicket
-                );
+
+            // Use the shared checkout logic
+            if (!EnsureFileCheckedOut(webSrvMgr, ref currentFile, comment, out downloadTicket))
+            {
+                // File is checked out by someone else, cannot proceed
+                return file;
+            }
 
             // build the propinstance array for the properties to update based on the input dictionary and the property definitions for the file.
             List<PropInstParam> propInstParams = new List<PropInstParam>();
