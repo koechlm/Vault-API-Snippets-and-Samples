@@ -76,7 +76,9 @@ namespace Vault_API_Sample_ManageProperties
                         { "Title", "NOW=" + DateTime.Now.ToShortTimeString() }
                     };
 
-                    manageProps.UpdateFileProperties(file, newPropValues);
+                    ACW.PropWriteResults writeResults;
+                    string[] cloakedEntityClasses;
+                    manageProps.UpdateFileProperties(file, "API-Sample UpdateFileProperties", true, out writeResults, out cloakedEntityClasses, false, newPropValues);
 
                     return;
 
@@ -89,8 +91,7 @@ namespace Vault_API_Sample_ManageProperties
                     }
 
                     // Synchronize properties from CAD file to Vault
-                    ACW.PropWriteResults writeResults;
-                    string[] cloakedEntityClasses;
+                    
 
                     Console.WriteLine("Synchronizing properties...");
 
