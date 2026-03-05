@@ -32,7 +32,6 @@
     <Folder Include="Admin\" />
     <Folder Include="ECO\" />
     <Folder Include="Properties\" />
-    <Folder Include="_Drafts\" />
     <Folder Include="_Templates\" />
     <Folder Include="Search\" />
   </ItemGroup>
@@ -63,7 +62,6 @@
     <Compile Include="Search\Vault-API-Sample-Search-Items.ps1" />
     <Compile Include="Login\Vault-API-Sample-SecondaryLogin.ps1" />
     <Compile Include="_Templates\_Vault-API-Sample-Template.ps1" />
-    <Compile Include="_Drafts\_Vault-API-Sample-GoToFile.ps1" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\PowerShell Tools for Visual Studio\PowerShellTools.targets" Condition="Exists('$(MSBuildExtensionsPath)\PowerShell Tools for Visual Studio\PowerShellTools.targets')" />
 </Project>
