@@ -76,54 +76,13 @@ namespace Vault_API_Sample_ManageProperties
                         { "Title", "NOW=" + DateTime.Now.ToShortTimeString() }
                     };
 
+                    // Convert string dictionary to typed property dictionary
+                    Dictionary<ACW.PropDef, object> typedPropValues = manageProps.ConvertToPropDictionary(newPropValues);
+
                     ACW.PropWriteResults writeResults;
                     string[] cloakedEntityClasses;
-                    manageProps.UpdateFileProperties(file, "API-Sample UpdateFileProperties", true, out writeResults, out cloakedEntityClasses, false, newPropValues);
-
-                    return;
-
-                    // Prompt to update property values before synchronization; this allows the user to test the property sync with custom values if desired; if the user just presses enter, the sample will proceed with default property values defined in the ManageProperties class
-                    Console.WriteLine("Do you want to update property values before synchronization? (y/n, press Enter for default 'n')");
-                    string updatePropertiesInput = Console.ReadLine();
-                    if (updatePropertiesInput.ToLower() == "y")
-                    {
-                        newPropValues = propertiesToUpdate();
-                    }
-
-                    // Synchronize properties from CAD file to Vault
-                    
-
-                    Console.WriteLine("Synchronizing properties...");
-
-                    ACW.File updatedFile = manageProps.SyncProperties(
-                        file,
-                        "Property sync via API sample",
-                        allowSync: true,
-                        out writeResults,
-                        out cloakedEntityClasses,
-                        force: false,  // set to true to force sync even if no compliance failures exist
-                        overridePropValues: newPropValues  // optionally pass in custom property values to override values read from the CAD file during sync; this allows you to test the sync with different values without having to change the values in the CAD file and re-upload each time
-                    );
-
-                    if (updatedFile.Id == file.Id && updatedFile.VerNum == file.VerNum)
-                    {
-                        Console.WriteLine("No property sync was needed - properties are already up to date.");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Property sync completed successfully!");
-                        Console.WriteLine($"New version: {updatedFile.VerNum}");
-
-                        if (writeResults != null)
-                        {
-                            Console.WriteLine($"Properties written: {writeResults.Results?.Length ?? 0}");
-                        }
-                    }
-
-                    if (cloakedEntityClasses != null && cloakedEntityClasses.Length > 0)
-                    {
-                        Console.WriteLine($"Warning: Insufficient permissions for entity classes: {string.Join(", ", cloakedEntityClasses)}");
-                    }
+                    manageProps.UpdateFileProperties(file, "API-Sample UpdateFileProperties", true, typedPropValues, 
+                        out writeResults, out cloakedEntityClasses, false);                   
                 }
                 catch (Exception ex)
                 {

@@ -17,7 +17,8 @@ namespace Vault_API_Sample_ManageProperties
     /// <summary>
     /// Helper class to manage file properties including updates and synchronization using filestore service.
     /// Major parts of the code originally have been posted on the blog Just Ones and Zeros, written by Dave Mink and Doug Redmond.
-    /// This refactored version combines synchronizing properties and updating property providerPropInst in one go, but does not guarantee to cover all use cases.
+    /// This refactored version combines synchronizing properties and updating property values in one go.
+    /// Use this class as a sample while being aware that it does not guarantee to cover all use cases.
     /// </summary>
     public class ManageProperties
     {
@@ -31,6 +32,8 @@ namespace Vault_API_Sample_ManageProperties
 
         private Connection connection;
         private WebServiceManager webSrvMgr;
+
+        #region public methods
 
         /// <summary>
         /// Constructor, initializing the class leveraging current connection and Vault behavior settings for property value conversion.
@@ -137,7 +140,7 @@ namespace Vault_API_Sample_ManageProperties
         }
 
         /// <summary>
-        /// Sync properties of a file, optionally overriding property providerPropInst.
+        /// Sync properties of a file, optionally overriding property values.
         /// </summary>
         /// <param name="file">the file you would like to sync</param>
         /// <param name="comment">the comment for the new version (if a property sync was performed)</param>
@@ -145,7 +148,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="writeResults">see FilestoreService.CopyFile method</param>
         /// <param name="cloakedEntityClasses">if you can't read an entity where properties would come from, its entity class is returned here</param>
         /// <param name="force">skip check for equivalence and always do a sync, creating a new version</param>
-        /// <param name="overridePropValues">a dictionary of property definitions and their override values</param>
+        /// <param name="overridePropValues">[Optional] dictionary of property definitions and their override values</param>
         /// <returns>the file returned from the checkin, same as the input if no property sync is done</returns>
         public ACW.File SyncProperties(ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults,
             out string[] cloakedEntityClasses, bool force = false, Dictionary<ACW.PropDef, object> overridePropValues = null)
@@ -365,6 +368,46 @@ namespace Vault_API_Sample_ManageProperties
             return updatedFile;
         }
 
+        /// <summary>
+        /// Converts a dictionary of property display names and string values to properly typed property definitions and values.
+        /// </summary>
+        /// <param name="keyValuePairs">Key=Property DisplayName, Value=Property Value as string</param>
+        /// <returns>Dictionary of FILE property definition and typed value object</returns>
+        public Dictionary<PropDef, object> ConvertToPropDictionary(Dictionary<string, string> keyValuePairs)
+        {
+            Dictionary<ACW.PropDef, object> propDictionary = new Dictionary<ACW.PropDef, object>();
+
+            // Get FILE property definitions from cache
+            Dictionary<long, ACW.PropDef> filePropDefs = propDefsByEntityClassAndId["FILE"];
+
+            foreach (var kvp in keyValuePairs)
+            {
+                string displayName = kvp.Key;
+                string stringValue = kvp.Value;
+
+                // Convert display name to system name, then find the property definition
+                if (filePropDispToSysNames.TryGetValue(displayName, out string sysName))
+                {
+                    // Find the property definition by system name
+                    ACW.PropDef propDef = filePropDefs.Values.FirstOrDefault(pd => pd.SysName == sysName);
+
+                    if (propDef != null && !string.IsNullOrWhiteSpace(stringValue))
+                    {
+                        // Convert string value to appropriate type based on property definition data type
+                        object typedValue = ConvertStringToPropertyType(stringValue, propDef.Typ);
+
+                        if (typedValue != null)
+                        {
+                            propDictionary[propDef] = typedValue;
+                        }
+                    }
+                }
+            }
+
+            return propDictionary;
+        }
+
+        #endregion public methods
 
         /// <summary>
         /// Ensures the file is checked out by the current user. If already checked out by another user, returns false.
@@ -375,7 +418,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="comment">Comment for the checkout operation</param>
         /// <param name="downloadTicket">Output parameter for the download ticket</param>
         /// <returns>True if file is checked out by current user, false if checked out by someone else</returns>
-        public bool EnsureFileCheckedOut(ACWT.WebServiceManager webSrvMgr, ref ACW.File file, string comment, out ACW.ByteArray downloadTicket)
+        private bool EnsureFileCheckedOut(ACWT.WebServiceManager webSrvMgr, ref ACW.File file, string comment, out ACW.ByteArray downloadTicket)
         {
             downloadTicket = null;
 
@@ -406,44 +449,7 @@ namespace Vault_API_Sample_ManageProperties
             return false;
         }
 
-        /// <summary>
-        /// Converts a dictionary of property display names and string values to properly typed property definitions and values.
-        /// </summary>
-        /// <param name="keyValuePairs">Key=Property DisplayName, Value=Property Value as string</param>
-        /// <returns>Dictionary of FILE property definition and typed value object</returns>
-        public Dictionary<PropDef, object> ConvertToPropDictionary(Dictionary<string, string> keyValuePairs)
-        {
-            Dictionary<ACW.PropDef, object> propDictionary = new Dictionary<ACW.PropDef, object>();
-
-            // Get FILE property definitions from cache
-            Dictionary<long, ACW.PropDef> filePropDefs = propDefsByEntityClassAndId["FILE"];
-
-            foreach (var kvp in keyValuePairs)
-            {
-                string displayName = kvp.Key;
-                string stringValue = kvp.Value;
-
-                // Convert display name to system name, then find the property definition
-                if (filePropDispToSysNames.TryGetValue(displayName, out string sysName))
-                {
-                    // Find the property definition by system name
-                    ACW.PropDef propDef = filePropDefs.Values.FirstOrDefault(pd => pd.SysName == sysName);
-                    
-                    if (propDef != null && !string.IsNullOrWhiteSpace(stringValue))
-                    {
-                        // Convert string value to appropriate type based on property definition data type
-                        object typedValue = ConvertStringToPropertyType(stringValue, propDef.Typ);
-                        
-                        if (typedValue != null)
-                        {
-                            propDictionary[propDef] = typedValue;
-                        }
-                    }
-                }
-            }
-
-            return propDictionary;
-        }
+        #region private helper methods
 
         /// <summary>
         /// Converts a string value to the appropriate data type based on the property definition type.
@@ -587,5 +593,7 @@ namespace Vault_API_Sample_ManageProperties
 
             return compProp.Val;
         }
+
+        #endregion private helper methods
     }
 }
