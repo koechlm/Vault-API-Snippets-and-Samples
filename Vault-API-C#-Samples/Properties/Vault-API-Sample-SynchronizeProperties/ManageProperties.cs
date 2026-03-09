@@ -298,19 +298,36 @@ namespace Vault_API_Sample_ManageProperties
                     }
                 }
 
+                // get BOM data to include in the write request so that mapped properties that are also part of the BOM get updated correctly;
+                BOM currentBOM = webSrvMgr.DocumentService.GetBOMByFileId(file.Id);
+                
                 // update the writeProps with the override values using moniker mappings
                 foreach (ACW.PropWriteReq writeReq in writeProps)
                 {
-                    if (propMonikers.TryGetValue(writeReq.Moniker, out ACW.PropDef propDef) &&
+                   var moniker = writeReq.Moniker;
+                    if (propMonikers.TryGetValue(moniker, out ACW.PropDef propDef) &&
                         overridePropValues.TryGetValue(propDef, out object overrideValue))
                     {
+                        // update the file property value
                         writeReq.Val = overrideValue;
+
+                        // update the BOM data if this property is part of the BOM
+                        if (currentBOM != null)
+                        {
+                            BOMProp bOMProp = currentBOM?.PropArray?.FirstOrDefault(bp => bp.Moniker == moniker);
+                            BOMCompAttr bOMCompAttr = currentBOM?.CompAttrArray?.FirstOrDefault(ca => ca.PropId == bOMProp.Id);
+                            if (bOMCompAttr != null)
+                            {
+                                // update the BOM component attribute value based on the property type and conversion options for date and bool types.
+                                bOMCompAttr.Val = overrideValue.ToString();
+                            }
+                        }
                     }
                 }
 
                 ACW.PropWriteRequests writePropsReq = new ACW.PropWriteRequests();
                 writePropsReq.Requests = writeProps;
-                writePropsReq.Bom = null;
+                writePropsReq.Bom = currentBOM;
                 // use CopyFile to copy existing resource and write the properties.
                 byte[] uploadTicket = webSrvMgr.FilestoreService.CopyFile(
                     downloadTicket.Bytes, null, allowSync, writePropsReq,
@@ -325,7 +342,7 @@ namespace Vault_API_Sample_ManageProperties
                     file.MasterId,
                     comment, /*keepCheckedOut*/false, /*lastWrite*/DateTime.Now,
                     associations,
-                    /*bom*/null, /*copyBom*/true, // preserve any BOM
+                    /*bom*/currentBOM, /*copyBom*/false, // update BOM
                     file.Name, file.FileClass, file.Hidden, // preserve these attributes
                     new ACW.ByteArray() { Bytes = uploadTicket }
                     );
