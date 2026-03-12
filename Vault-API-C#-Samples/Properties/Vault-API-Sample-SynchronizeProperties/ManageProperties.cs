@@ -312,11 +312,14 @@ namespace Vault_API_Sample_ManageProperties
                         if (currentBOM != null)
                         {
                             BOMProp bOMProp = currentBOM?.PropArray?.FirstOrDefault(bp => bp.Moniker == moniker);
-                            BOMCompAttr bOMCompAttr = currentBOM?.CompAttrArray?.FirstOrDefault(ca => ca.PropId == bOMProp.Id);
-                            if (bOMCompAttr != null)
+                            if (bOMProp != null)
                             {
-                                // update the BOM component attribute value based on the property type and conversion options for date and bool types.
-                                bOMCompAttr.Val = overrideValue.ToString();
+                                BOMCompAttr bOMCompAttr = currentBOM?.CompAttrArray?.FirstOrDefault(ca => ca.PropId == bOMProp.Id);
+                                if (bOMCompAttr != null)
+                                {
+                                    // update the BOM component attribute value based on the property type and conversion options for date and bool types.
+                                    bOMCompAttr.Val = overrideValue.ToString();
+                                }
                             }
                         }
                     }
