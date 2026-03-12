@@ -1,5 +1,5 @@
 using Autodesk.Connectivity.WebServices;
-using Autodesk. Connectivity.WebServicesTools;
+using Autodesk.Connectivity.WebServicesTools;
 using Autodesk.DataManagement.Client.Framework.Vault.Currency.Connections;
 using Autodesk.DataManagement.Client.Framework.Vault.Currency.Properties;
 using System;
@@ -78,7 +78,7 @@ namespace Vault_API_Sample_ManageProperties
             serverConfig = webSrvMgr.AdminService.GetServerConfiguration();
         }
 
-        public ACW.File UpdateFileProperties(ACW.File file, string comment, bool allowSync, Dictionary<ACW.PropDef, object> newPropValues, 
+        public ACW.File UpdateFileProperties(ACW.File file, string comment, bool allowSync, Dictionary<ACW.PropDef, object> newPropValues,
             out ACW.PropWriteResults writeResults, out string[] cloakedEntityClasses, bool force = false)
         {
             // we need to split the properties in mapped and unmapped ones, because mapped properties need to be updated through the filestore service
@@ -88,7 +88,7 @@ namespace Vault_API_Sample_ManageProperties
 
             // Use cached property definition infos
             IEnumerable<PropDefInfo> propDefInfos = propDefInfosByEntityClass["FILE"];
-            
+
             // Get provider for the current file - batch this with a single API call
             PropDefInfo providerPropDefInfo = propDefInfos.FirstOrDefault(p => p.PropDef.SysName == "Provider");
             if (providerPropDefInfo == null)
@@ -150,17 +150,14 @@ namespace Vault_API_Sample_ManageProperties
                             }
                         }
 
-                        if (!isMapped)
-                        {
-                            // no mapping for this property, update directly
-                            unmappedPropValues[propDef] = value;
-                        }
+                        // add property value update in any case
+                        unmappedPropValues[propDef] = value;
                     }
                 }
             }
 
             bool keepCheckedOut = false;
-            if (mappedPropValues.Count > 0) keepCheckedOut = true;
+            if (unmappedPropValues.Count > 0 && mappedPropValues.Count > 0) keepCheckedOut = true;
 
             file = UpdateProperties(file, comment, unmappedPropValues, keepCheckedOut);
             file = SyncProperties(file, comment, allowSync, out writeResults, out cloakedEntityClasses, force, overridePropValues: mappedPropValues);
@@ -231,7 +228,7 @@ namespace Vault_API_Sample_ManageProperties
                     // don't proceed since we don't have the permissions to write back 
                     // everything that is necessary to clear the failures.
                     return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
-                    
+
                 }
 
                 // filter so we only keep providerPropInst from non-cloaked entities
@@ -244,7 +241,7 @@ namespace Vault_API_Sample_ManageProperties
                 if (compProps == null || compProps.Length == 0)
                 {
                     // nothing to do, undo checkout and return
-                    return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);                    
+                    return webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
                 }
 
                 // convert CompProp array to PropWriteReq array.
@@ -273,10 +270,10 @@ namespace Vault_API_Sample_ManageProperties
                     foreach (var kvp in overridePropValues)
                     {
                         ACW.PropDef propDef = kvp.Key;
-                        
+
                         // Use cached property definition info instead of creating new VDF PropertyDefinition
                         PropDefInfo propDefInfo = propDefInfosByEntityClass["FILE"].FirstOrDefault(pdi => pdi.PropDef.Id == propDef.Id);
-                        
+
                         if (propDefInfo?.EntClassCtntSrcPropCfgArray != null)
                         {
                             foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
@@ -300,11 +297,11 @@ namespace Vault_API_Sample_ManageProperties
 
                 // get BOM data to include in the write request so that mapped properties that are also part of the BOM get updated correctly;
                 BOM currentBOM = webSrvMgr.DocumentService.GetBOMByFileId(file.Id);
-                
+
                 // update the writeProps with the override values using moniker mappings
                 foreach (ACW.PropWriteReq writeReq in writeProps)
                 {
-                   var moniker = writeReq.Moniker;
+                    var moniker = writeReq.Moniker;
                     if (propMonikers.TryGetValue(moniker, out ACW.PropDef propDef) &&
                         overridePropValues.TryGetValue(propDef, out object overrideValue))
                     {
@@ -383,12 +380,12 @@ namespace Vault_API_Sample_ManageProperties
             // build the propinstance array for the properties to update based on the input dictionary and the property definitions for the file.
             List<PropInstParam> propInstParams = new List<PropInstParam>();
             PropInstParamArray propInstParamArray = new PropInstParamArray();
-            
+
             foreach (var kvp in newPropValues)
             {
                 ACW.PropDef propDef = kvp.Key;
                 object value = kvp.Value;
-                
+
                 PropInstParam propInstParam = new PropInstParam()
                 {
                     PropDefId = propDef.Id,
@@ -396,7 +393,7 @@ namespace Vault_API_Sample_ManageProperties
                 };
                 propInstParams.Add(propInstParam);
             }
-            
+
             propInstParamArray.Items = propInstParams.ToArray();
 
             // update unmapped properties using DocumentService.UpdateFileProperties
@@ -468,12 +465,12 @@ namespace Vault_API_Sample_ManageProperties
 
                 // Build property instance array for this file
                 List<PropInstParam> propInstParams = new List<PropInstParam>();
-                
+
                 foreach (var kvp in propValuesByFile[i])
                 {
                     ACW.PropDef propDef = kvp.Key;
                     object value = kvp.Value;
-                    
+
                     PropInstParam propInstParam = new PropInstParam()
                     {
                         PropDefId = propDef.Id,
@@ -565,10 +562,10 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="cloakedEntityClassesByFile">Output array of cloaked entity classes, one per file</param>
         /// <param name="force">If true, forces the sync operation even if no compliance failures exist</param>
         /// <returns>Array of updated file objects</returns>
-        public ACW.File[] UpdateFileProperties(ACW.File[] files, string comment, bool allowSync, 
-            Dictionary<ACW.PropDef, object>[] propValuesByFile, 
-            out ACW.PropWriteResults[] writeResultsByFile, 
-            out string[][] cloakedEntityClassesByFile, 
+        public ACW.File[] UpdateFileProperties(ACW.File[] files, string comment, bool allowSync,
+            Dictionary<ACW.PropDef, object>[] propValuesByFile,
+            out ACW.PropWriteResults[] writeResultsByFile,
+            out string[][] cloakedEntityClassesByFile,
             bool force = false)
         {
             if (files == null || files.Length == 0)
@@ -584,7 +581,7 @@ namespace Vault_API_Sample_ManageProperties
             // Split properties for each file into mapped and unmapped
             Dictionary<ACW.PropDef, object>[] mappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
             Dictionary<ACW.PropDef, object>[] unmappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
-            
+
             // Use cached property definition infos
             IEnumerable<PropDefInfo> propDefInfos = propDefInfosByEntityClass["FILE"];
             PropDefInfo providerPropDefInfo = propDefInfos.FirstOrDefault(p => p.PropDef.SysName == "Provider");
@@ -592,7 +589,7 @@ namespace Vault_API_Sample_ManageProperties
             // Get providers for all files in a single batch call
             long[] fileIds = files.Select(f => f.Id).ToArray();
             PropInst[] providerPropInsts = null;
-            
+
             if (providerPropDefInfo != null)
             {
                 providerPropInsts = webSrvMgr.PropertyService.GetProperties("FILE", fileIds, new long[] { providerPropDefInfo.PropDef.Id });
@@ -667,10 +664,9 @@ namespace Vault_API_Sample_ManageProperties
                             }
                         }
 
-                        if (!isMapped)
-                        {
-                            unmappedPropValuesByFile[fileIndex][propDef] = value;
-                        }
+                        // add property value update in any case
+                        unmappedPropValuesByFile[fileIndex][propDef] = value;
+
                     }
                 }
             }
@@ -730,10 +726,10 @@ namespace Vault_API_Sample_ManageProperties
                     file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex], keepCheckedOut);
                 }
 
-                file = SyncProperties(file, comment, allowSync, 
-                    out writeResultsByFile[originalIndex], 
-                    out cloakedEntityClassesByFile[originalIndex], 
-                    force, 
+                file = SyncProperties(file, comment, allowSync,
+                    out writeResultsByFile[originalIndex],
+                    out cloakedEntityClassesByFile[originalIndex],
+                    force,
                     overridePropValues: mappedPropValuesByFile[originalIndex]);
 
                 resultFiles[originalIndex] = file;

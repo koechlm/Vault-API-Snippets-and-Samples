@@ -72,8 +72,17 @@ namespace Vault_API_Sample_ManageProperties
 
                     newPropValues = new Dictionary<string, string>()
                     {
-                        { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
-                        { "Title", "NOW=" + DateTime.Now.ToShortTimeString() }
+                        //{ "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
+                        //{ "Title", "NOW=" + DateTime.Now.ToShortTimeString() },
+                        { "Sync-Test-Text", "Today is " + DateTime.Now.ToShortDateString() },
+                        { "Sync-Test-Bool", "True" },
+                        { "Sync-Test-Date", DateTime.Now.ToString() },
+                        { "Sync-Test-Number", "123,54" },
+                        { "Unmapped-Test-Text", "This is a test" },
+                        { "Unmapped-Test-Bool", "False" },
+                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-7).ToString() },
+                        { "Unmapped-Test-Number", "987,65" }
+
                     };
 
                     // Convert string dictionary to typed property dictionary
