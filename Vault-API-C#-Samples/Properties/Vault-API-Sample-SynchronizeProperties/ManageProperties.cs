@@ -164,6 +164,209 @@ namespace Vault_API_Sample_ManageProperties
             return file;
         }
 
+
+        /// <summary>
+        /// Updates file properties for multiple files by intelligently routing them to either mapped (filestore service) or unmapped (direct database) update paths.
+        /// This overload provides batch processing capabilities for improved performance when updating multiple files.
+        /// </summary>
+        /// <param name="files">Array of files to update properties on</param>
+        /// <param name="comment">Comment to use for the new versions</param>
+        /// <param name="allowSync">If true, allows the filestore to retrieve files from another filestore if not available locally</param>
+        /// <param name="propValuesByFile">Array of property value dictionaries, one for each file (must match the length of files array)</param>
+        /// <param name="writeResultsByFile">Output array of write results for mapped properties, one per file</param>
+        /// <param name="cloakedEntityClassesByFile">Output array of cloaked entity classes, one per file</param>
+        /// <param name="force">If true, forces the sync operation even if no compliance failures exist</param>
+        /// <returns>Array of updated file objects</returns>
+        public ACW.File[] UpdateFileProperties(ACW.File[] files, string comment, bool allowSync,
+            Dictionary<ACW.PropDef, object>[] propValuesByFile,
+            out ACW.PropWriteResults[] writeResultsByFile,
+            out string[][] cloakedEntityClassesByFile,
+            bool force = false)
+        {
+            if (files == null || files.Length == 0)
+                throw new ArgumentException("Files array cannot be null or empty", nameof(files));
+
+            if (propValuesByFile == null || propValuesByFile.Length != files.Length)
+                throw new ArgumentException("Property values array must match the length of files array", nameof(propValuesByFile));
+
+            // Initialize output arrays
+            writeResultsByFile = new ACW.PropWriteResults[files.Length];
+            cloakedEntityClassesByFile = new string[files.Length][];
+
+            // Initialize all writeResults entries to empty instances so callers can safely iterate without null checks
+            for (int i = 0; i < files.Length; i++)
+            {
+                writeResultsByFile[i] = new ACW.PropWriteResults();
+            }
+
+            // Split properties for each file into mapped and unmapped
+            Dictionary<ACW.PropDef, object>[] mappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
+            Dictionary<ACW.PropDef, object>[] unmappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
+
+            // Use cached property definition infos
+            IEnumerable<PropDefInfo> propDefInfos = propDefInfosByEntityClass["FILE"];
+            PropDefInfo providerPropDefInfo = propDefInfos.FirstOrDefault(p => p.PropDef.SysName == "Provider");
+
+            // Get providers for all files in a single batch call
+            long[] fileIds = files.Select(f => f.Id).ToArray();
+            PropInst[] providerPropInsts = null;
+
+            if (providerPropDefInfo != null)
+            {
+                providerPropInsts = webSrvMgr.PropertyService.GetProperties("FILE", fileIds, new long[] { providerPropDefInfo.PropDef.Id });
+            }
+
+            // Build a dictionary of PropDef.Id to PropDefInfo for faster lookup
+            Dictionary<long, PropDefInfo> propDefInfoById = propDefInfos.ToDictionary(pdi => pdi.PropDef.Id);
+
+            // Process each file
+            for (int fileIndex = 0; fileIndex < files.Length; fileIndex++)
+            {
+                mappedPropValuesByFile[fileIndex] = new Dictionary<ACW.PropDef, object>();
+                unmappedPropValuesByFile[fileIndex] = new Dictionary<ACW.PropDef, object>();
+
+                ACW.File file = files[fileIndex];
+                Dictionary<ACW.PropDef, object> newPropValues = propValuesByFile[fileIndex];
+
+                if (providerPropDefInfo == null)
+                {
+                    // No provider property, treat all as unmapped
+                    unmappedPropValuesByFile[fileIndex] = newPropValues;
+                    continue;
+                }
+
+                // Get provider for this file
+                PropInst providerPropInst = providerPropInsts?.FirstOrDefault(pi => pi.EntityId == file.Id);
+                if (providerPropInst == null)
+                {
+                    unmappedPropValuesByFile[fileIndex] = newPropValues;
+                    continue;
+                }
+
+                string providerName = (string)providerPropInst.Val;
+                IEnumerable<CtntSrc> providers = serverConfig.CtntSrcArray.Where(source => source.DispName == providerName);
+
+                if (providers.Count() == 0)
+                    providers = serverConfig.CtntSrcArray.Where(source => source.SysName == "IFilter");
+
+                CtntSrc provider = providers.FirstOrDefault();
+
+                // Classify properties as mapped or unmapped
+                foreach (var kvp in newPropValues)
+                {
+                    ACW.PropDef propDef = kvp.Key;
+                    object value = kvp.Value;
+
+                    if (propDefInfoById.TryGetValue(propDef.Id, out PropDefInfo propDefInfo))
+                    {
+                        bool isMapped = false;
+
+                        if (propDefInfo.EntClassCtntSrcPropCfgArray != null)
+                        {
+                            foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
+                            {
+                                if (contentSource.EntClassId != "FILE" || contentSource.CtntSrcPropDefArray == null)
+                                    continue;
+
+                                for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
+                                {
+                                    if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
+                                    {
+                                        if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                                        {
+                                            mappedPropValuesByFile[fileIndex][propDef] = value;
+                                            isMapped = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (isMapped) break;
+                            }
+                        }
+
+                        // add property value update in any case
+                        unmappedPropValuesByFile[fileIndex][propDef] = value;
+
+                    }
+                }
+            }
+
+            // Separate files into those with mapped vs unmapped only properties
+            List<ACW.File> filesWithUnmappedOnly = new List<ACW.File>();
+            List<Dictionary<ACW.PropDef, object>> unmappedOnlyProps = new List<Dictionary<ACW.PropDef, object>>();
+            List<int> unmappedOnlyIndices = new List<int>();
+
+            List<ACW.File> filesWithMapped = new List<ACW.File>();
+            List<int> filesWithMappedIndices = new List<int>();
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                if (unmappedPropValuesByFile[i].Count > 0 && mappedPropValuesByFile[i].Count == 0)
+                {
+                    filesWithUnmappedOnly.Add(files[i]);
+                    unmappedOnlyProps.Add(unmappedPropValuesByFile[i]);
+                    unmappedOnlyIndices.Add(i);
+                }
+                else if (mappedPropValuesByFile[i].Count > 0)
+                {
+                    filesWithMapped.Add(files[i]);
+                    filesWithMappedIndices.Add(i);
+                }
+            }
+
+            ACW.File[] resultFiles = new ACW.File[files.Length];
+
+            // Batch update unmapped-only files
+            if (filesWithUnmappedOnly.Count > 0)
+            {
+                ACW.File[] updatedUnmappedFiles = UpdatePropertiesBatch(
+                    filesWithUnmappedOnly.ToArray(),
+                    comment,
+                    unmappedOnlyProps.ToArray(),
+                    keepCheckedOut: false
+                );
+
+                for (int i = 0; i < updatedUnmappedFiles.Length; i++)
+                {
+                    int originalIndex = unmappedOnlyIndices[i];
+                    resultFiles[originalIndex] = updatedUnmappedFiles[i];
+                }
+
+                // Initialize writeResultsByFile entries for unmapped-only files
+                for (int i = 0; i < unmappedOnlyProps.Count; i++)
+                {
+                    int originalIndex = unmappedOnlyIndices[i];
+                    writeResultsByFile[originalIndex] = new ACW.PropWriteResults();
+                }
+            }
+
+            // Process files with mapped properties individually (requires sync operation)
+            for (int i = 0; i < filesWithMapped.Count; i++)
+            {
+                int originalIndex = filesWithMappedIndices[i];
+                ACW.File file = filesWithMapped[i];
+
+                bool keepCheckedOut = mappedPropValuesByFile[originalIndex].Count > 0;
+
+                if (unmappedPropValuesByFile[originalIndex].Count > 0)
+                {
+                    file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex], keepCheckedOut);
+                }
+
+                file = SyncProperties(file, comment, allowSync,
+                    out writeResultsByFile[originalIndex],
+                    out cloakedEntityClassesByFile[originalIndex],
+                    force,
+                    overridePropValues: mappedPropValuesByFile[originalIndex]);
+
+                resultFiles[originalIndex] = file;
+            }
+
+            return resultFiles;
+        }
+
+
         /// <summary>
         /// Sync properties of a file, optionally overriding property values.
         /// </summary>
@@ -181,8 +384,8 @@ namespace Vault_API_Sample_ManageProperties
             //Get the binary data for the file to be synced from the filestore service.
             ACW.ByteArray downloadTicket = null;
 
-            // clear output parameters so we don't have to worry about that for each possible return condition.
-            writeResults = null;
+            // initialize output parameters to empty results so callers can safely iterate without null checks.
+            writeResults = new ACW.PropWriteResults();
             cloakedEntityClasses = null;
 
             // synchronization is needed if there are compliance failures or if newPropValues are provided;
@@ -429,6 +632,7 @@ namespace Vault_API_Sample_ManageProperties
             return updatedFile;
         }
 
+
         /// <summary>
         /// Update UDPs of unmapped file properties for multiple files in a single batch operation.
         /// This method leverages the bulk UpdateFileProperties API for better performance when updating multiple files.
@@ -553,193 +757,8 @@ namespace Vault_API_Sample_ManageProperties
 
             return updatedFiles.ToArray();
         }
-        /// <summary>
-        /// Updates file properties for multiple files by intelligently routing them to either mapped (filestore service) or unmapped (direct database) update paths.
-        /// This overload provides batch processing capabilities for improved performance when updating multiple files.
-        /// </summary>
-        /// <param name="files">Array of files to update properties on</param>
-        /// <param name="comment">Comment to use for the new versions</param>
-        /// <param name="allowSync">If true, allows the filestore to retrieve files from another filestore if not available locally</param>
-        /// <param name="propValuesByFile">Array of property value dictionaries, one for each file (must match the length of files array)</param>
-        /// <param name="writeResultsByFile">Output array of write results for mapped properties, one per file</param>
-        /// <param name="cloakedEntityClassesByFile">Output array of cloaked entity classes, one per file</param>
-        /// <param name="force">If true, forces the sync operation even if no compliance failures exist</param>
-        /// <returns>Array of updated file objects</returns>
-        public ACW.File[] UpdateFileProperties(ACW.File[] files, string comment, bool allowSync,
-            Dictionary<ACW.PropDef, object>[] propValuesByFile,
-            out ACW.PropWriteResults[] writeResultsByFile,
-            out string[][] cloakedEntityClassesByFile,
-            bool force = false)
-        {
-            if (files == null || files.Length == 0)
-                throw new ArgumentException("Files array cannot be null or empty", nameof(files));
-
-            if (propValuesByFile == null || propValuesByFile.Length != files.Length)
-                throw new ArgumentException("Property values array must match the length of files array", nameof(propValuesByFile));
-
-            // Initialize output arrays
-            writeResultsByFile = new ACW.PropWriteResults[files.Length];
-            cloakedEntityClassesByFile = new string[files.Length][];
-
-            // Split properties for each file into mapped and unmapped
-            Dictionary<ACW.PropDef, object>[] mappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
-            Dictionary<ACW.PropDef, object>[] unmappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
-
-            // Use cached property definition infos
-            IEnumerable<PropDefInfo> propDefInfos = propDefInfosByEntityClass["FILE"];
-            PropDefInfo providerPropDefInfo = propDefInfos.FirstOrDefault(p => p.PropDef.SysName == "Provider");
-
-            // Get providers for all files in a single batch call
-            long[] fileIds = files.Select(f => f.Id).ToArray();
-            PropInst[] providerPropInsts = null;
-
-            if (providerPropDefInfo != null)
-            {
-                providerPropInsts = webSrvMgr.PropertyService.GetProperties("FILE", fileIds, new long[] { providerPropDefInfo.PropDef.Id });
-            }
-
-            // Build a dictionary of PropDef.Id to PropDefInfo for faster lookup
-            Dictionary<long, PropDefInfo> propDefInfoById = propDefInfos.ToDictionary(pdi => pdi.PropDef.Id);
-
-            // Process each file
-            for (int fileIndex = 0; fileIndex < files.Length; fileIndex++)
-            {
-                mappedPropValuesByFile[fileIndex] = new Dictionary<ACW.PropDef, object>();
-                unmappedPropValuesByFile[fileIndex] = new Dictionary<ACW.PropDef, object>();
-
-                ACW.File file = files[fileIndex];
-                Dictionary<ACW.PropDef, object> newPropValues = propValuesByFile[fileIndex];
-
-                if (providerPropDefInfo == null)
-                {
-                    // No provider property, treat all as unmapped
-                    unmappedPropValuesByFile[fileIndex] = newPropValues;
-                    continue;
-                }
-
-                // Get provider for this file
-                PropInst providerPropInst = providerPropInsts?.FirstOrDefault(pi => pi.EntityId == file.Id);
-                if (providerPropInst == null)
-                {
-                    unmappedPropValuesByFile[fileIndex] = newPropValues;
-                    continue;
-                }
-
-                string providerName = (string)providerPropInst.Val;
-                IEnumerable<CtntSrc> providers = serverConfig.CtntSrcArray.Where(source => source.DispName == providerName);
-
-                if (providers.Count() == 0)
-                    providers = serverConfig.CtntSrcArray.Where(source => source.SysName == "IFilter");
-
-                CtntSrc provider = providers.FirstOrDefault();
-
-                // Classify properties as mapped or unmapped
-                foreach (var kvp in newPropValues)
-                {
-                    ACW.PropDef propDef = kvp.Key;
-                    object value = kvp.Value;
-
-                    if (propDefInfoById.TryGetValue(propDef.Id, out PropDefInfo propDefInfo))
-                    {
-                        bool isMapped = false;
-
-                        if (propDefInfo.EntClassCtntSrcPropCfgArray != null)
-                        {
-                            foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
-                            {
-                                if (contentSource.EntClassId != "FILE" || contentSource.CtntSrcPropDefArray == null)
-                                    continue;
-
-                                for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
-                                {
-                                    if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
-                                    {
-                                        if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
-                                        {
-                                            mappedPropValuesByFile[fileIndex][propDef] = value;
-                                            isMapped = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (isMapped) break;
-                            }
-                        }
-
-                        // add property value update in any case
-                        unmappedPropValuesByFile[fileIndex][propDef] = value;
-
-                    }
-                }
-            }
-
-            // Separate files into those with mapped vs unmapped only properties
-            List<ACW.File> filesWithUnmappedOnly = new List<ACW.File>();
-            List<Dictionary<ACW.PropDef, object>> unmappedOnlyProps = new List<Dictionary<ACW.PropDef, object>>();
-            List<int> unmappedOnlyIndices = new List<int>();
-
-            List<ACW.File> filesWithMapped = new List<ACW.File>();
-            List<int> filesWithMappedIndices = new List<int>();
-
-            for (int i = 0; i < files.Length; i++)
-            {
-                if (unmappedPropValuesByFile[i].Count > 0 && mappedPropValuesByFile[i].Count == 0)
-                {
-                    filesWithUnmappedOnly.Add(files[i]);
-                    unmappedOnlyProps.Add(unmappedPropValuesByFile[i]);
-                    unmappedOnlyIndices.Add(i);
-                }
-                else if (mappedPropValuesByFile[i].Count > 0)
-                {
-                    filesWithMapped.Add(files[i]);
-                    filesWithMappedIndices.Add(i);
-                }
-            }
-
-            ACW.File[] resultFiles = new ACW.File[files.Length];
-
-            // Batch update unmapped-only files
-            if (filesWithUnmappedOnly.Count > 0)
-            {
-                ACW.File[] updatedUnmappedFiles = UpdatePropertiesBatch(
-                    filesWithUnmappedOnly.ToArray(),
-                    comment,
-                    unmappedOnlyProps.ToArray(),
-                    keepCheckedOut: false
-                );
-
-                for (int i = 0; i < updatedUnmappedFiles.Length; i++)
-                {
-                    int originalIndex = unmappedOnlyIndices[i];
-                    resultFiles[originalIndex] = updatedUnmappedFiles[i];
-                }
-            }
-
-            // Process files with mapped properties individually (requires sync operation)
-            for (int i = 0; i < filesWithMapped.Count; i++)
-            {
-                int originalIndex = filesWithMappedIndices[i];
-                ACW.File file = filesWithMapped[i];
-
-                bool keepCheckedOut = mappedPropValuesByFile[originalIndex].Count > 0;
-
-                if (unmappedPropValuesByFile[originalIndex].Count > 0)
-                {
-                    file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex], keepCheckedOut);
-                }
-
-                file = SyncProperties(file, comment, allowSync,
-                    out writeResultsByFile[originalIndex],
-                    out cloakedEntityClassesByFile[originalIndex],
-                    force,
-                    overridePropValues: mappedPropValuesByFile[originalIndex]);
-
-                resultFiles[originalIndex] = file;
-            }
-
-            return resultFiles;
-        }
+        
+        
         /// <summary>
         /// Converts a dictionary of property display names and string values to properly typed property definitions and values.
         /// </summary>

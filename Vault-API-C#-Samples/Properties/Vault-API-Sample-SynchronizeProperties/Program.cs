@@ -66,6 +66,8 @@ namespace Vault_API_Sample_ManageProperties
                     bool dateOnly = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.DateMappingOption") == "1";
                     bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.WriteBoolPropertyAsN") == "1";
 
+
+                    #region single file update
                     // Initialize PropertySync helper class, leverage date and bool conversion options if needed by setting the dateOnly and boolAsInt parameters in the constructor;
                     ManageProperties manageProps = new ManageProperties(connection, dateOnly, boolAsInt);
                     Dictionary<string, string> newPropValues = null;
@@ -88,10 +90,63 @@ namespace Vault_API_Sample_ManageProperties
                     // Convert string dictionary to typed property dictionary
                     Dictionary<ACW.PropDef, object> typedPropValues = manageProps.ConvertToPropDictionary(newPropValues);
 
-                    ACW.PropWriteResults writeResults;
+                    ACW.PropWriteResults writeResults = new ACW.PropWriteResults();
                     string[] cloakedEntityClasses;
-                    manageProps.UpdateFileProperties(file, "API-Sample UpdateFileProperties", true, typedPropValues, 
-                        out writeResults, out cloakedEntityClasses, false);                   
+                    ACW.File updatedFile = manageProps.UpdateFileProperties(file, "API-Sample UpdateFileProperties", true, typedPropValues, 
+                        out writeResults, out cloakedEntityClasses, false);
+
+                    #endregion single file update
+
+
+                    #region batch update
+                    // add another two files based on user input to demonstrate the batch property synchronization capabilities of the helper class; if the user does not provide two additional file paths, the sample will stop executing.
+                    string[] multipleFilePaths = new string[2];
+                    for (int i = 0; i < multipleFilePaths.Length; i++)
+                    {
+                        Console.WriteLine($"Enter the full path of additional file {i + 1} to synchronize properties on (press Enter to skip):");
+                        string additionalFilePath = Console.ReadLine();
+                        if (string.IsNullOrWhiteSpace(additionalFilePath))
+                        {
+                            Console.WriteLine("No additional file path provided, skipping...");
+                            break;
+                        }
+                        multipleFilePaths[i] = additionalFilePath;
+                    }
+
+                    ACW.PropWriteResults[] batchWriteResults;
+                    string[][] batchCloakedEntityClasses;
+
+                    // create new dictionary with the same property values to update multiple files with the same values; in a real-world scenario, you would likely have different values for each file, so you would create a list of dictionaries or some other data structure to hold the different values for each file
+                    Dictionary<ACW.PropDef, object> batchTypedPropValues = manageProps.ConvertToPropDictionary(new Dictionary<string, string>()
+                    {
+                        { "Sync-Test-Text", "Batch update on " + DateTime.Now.ToShortDateString() },
+                        { "Sync-Test-Bool", "False" },
+                        { "Sync-Test-Date", DateTime.Now.AddDays(7).ToString() },
+                        { "Sync-Test-Number", "321,45" },
+                        { "Unmapped-Test-Text", "This is a batch test" },
+                        { "Unmapped-Test-Bool", "True" },
+                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-14).ToString() },
+                        { "Unmapped-Test-Number", "567,89" }
+                    });
+
+                    // Prepare an array of property dictionaries, one for each file in the batch
+                    Dictionary<ACW.PropDef, object>[] batchTypedPropValuesArray = multipleFilePaths
+                        .Where(f => !string.IsNullOrWhiteSpace(f))
+                        .Select(f => batchTypedPropValues)
+                        .ToArray();
+
+                    ACW.File[] multipleFiles = webServiceManager.DocumentService.FindLatestFilesByPaths(multipleFilePaths.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray());
+
+                    ACW.File[] updatedFiles = manageProps.UpdateFileProperties(
+                        files: multipleFiles,
+                        "API-Sample Batch UpdateFileProperties",
+                        true,
+                        batchTypedPropValuesArray,
+                        out batchWriteResults,
+                        out batchCloakedEntityClasses,
+                        false);
+                    #endregion batch update
+
                 }
                 catch (Exception ex)
                 {
