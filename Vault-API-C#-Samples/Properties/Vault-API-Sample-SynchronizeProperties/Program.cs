@@ -74,15 +74,15 @@ namespace Vault_API_Sample_ManageProperties
 
                     newPropValues = new Dictionary<string, string>()
                     {
-                        //{ "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
-                        //{ "Title", "NOW=" + DateTime.Now.ToShortTimeString() },
+                        { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
+                        { "Title", "NOW=" + DateTime.Now.ToShortTimeString() },
                         { "Sync-Test-Text", "Today is " + DateTime.Now.ToShortDateString() },
                         { "Sync-Test-Bool", "True" },
-                        { "Sync-Test-Date", DateTime.Now.ToString() },
+                        { "Sync-Test-Date", DateTime.Now.AddDays(3).ToString() },
                         { "Sync-Test-Number", "123,54" },
                         { "Unmapped-Test-Text", "This is a test" },
                         { "Unmapped-Test-Bool", "False" },
-                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-7).ToString() },
+                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-3).ToString() },
                         { "Unmapped-Test-Number", "987,65" }
 
                     };
@@ -113,19 +113,26 @@ namespace Vault_API_Sample_ManageProperties
                         multipleFilePaths[i] = additionalFilePath;
                     }
 
+                    if (multipleFilePaths.All(p => string.IsNullOrWhiteSpace(p)))
+                    {
+                        Console.WriteLine("No additional file paths provided, skipping batch update...");
+                        return;
+                    }
+
                     ACW.PropWriteResults[] batchWriteResults;
                     string[][] batchCloakedEntityClasses;
 
                     // create new dictionary with the same property values to update multiple files with the same values; in a real-world scenario, you would likely have different values for each file, so you would create a list of dictionaries or some other data structure to hold the different values for each file
                     Dictionary<ACW.PropDef, object> batchTypedPropValues = manageProps.ConvertToPropDictionary(new Dictionary<string, string>()
                     {
+                        { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
                         { "Sync-Test-Text", "Batch update on " + DateTime.Now.ToShortDateString() },
                         { "Sync-Test-Bool", "False" },
-                        { "Sync-Test-Date", DateTime.Now.AddDays(7).ToString() },
+                        { "Sync-Test-Date", DateTime.Now.AddDays(2).ToString() },
                         { "Sync-Test-Number", "321,45" },
                         { "Unmapped-Test-Text", "This is a batch test" },
                         { "Unmapped-Test-Bool", "True" },
-                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-14).ToString() },
+                        { "Unmapped-Test-Date", DateTime.Now.AddDays(-2).ToString() },
                         { "Unmapped-Test-Number", "567,89" }
                     });
 

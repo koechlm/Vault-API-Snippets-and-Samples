@@ -157,10 +157,10 @@ namespace Vault_API_Sample_ManageProperties
             }
 
             bool keepCheckedOut = false;
-            if (unmappedPropValues.Count > 0 && mappedPropValues.Count > 0) keepCheckedOut = true;
+            if (unmappedPropValues.Count > 0 && mappedPropValues.Count > 0) keepCheckedOut = true;                        
+            file = SyncProperties(file, comment, allowSync, out writeResults, out cloakedEntityClasses, force, overridePropValues: mappedPropValues, keepCheckedOut: keepCheckedOut);
+            file = UpdateProperties(file, comment, unmappedPropValues);
 
-            file = UpdateProperties(file, comment, unmappedPropValues, keepCheckedOut);
-            file = SyncProperties(file, comment, allowSync, out writeResults, out cloakedEntityClasses, force, overridePropValues: mappedPropValues);
             return file;
         }
 
@@ -349,16 +349,17 @@ namespace Vault_API_Sample_ManageProperties
 
                 bool keepCheckedOut = mappedPropValuesByFile[originalIndex].Count > 0;
 
-                if (unmappedPropValuesByFile[originalIndex].Count > 0)
-                {
-                    file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex], keepCheckedOut);
-                }
-
                 file = SyncProperties(file, comment, allowSync,
                     out writeResultsByFile[originalIndex],
                     out cloakedEntityClassesByFile[originalIndex],
                     force,
-                    overridePropValues: mappedPropValuesByFile[originalIndex]);
+                    overridePropValues: mappedPropValuesByFile[originalIndex],
+                    keepCheckedOut: keepCheckedOut);
+
+                if (unmappedPropValuesByFile[originalIndex].Count > 0)
+                {
+                    file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex]);
+                }
 
                 resultFiles[originalIndex] = file;
             }
@@ -379,7 +380,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="overridePropValues">[Optional] dictionary of property definitions and their override values</param>
         /// <returns>the file returned from the checkin, same as the input if no property sync is done</returns>
         public ACW.File SyncProperties(ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults,
-            out string[] cloakedEntityClasses, bool force = false, Dictionary<ACW.PropDef, object> overridePropValues = null)
+            out string[] cloakedEntityClasses, bool force = false, Dictionary<ACW.PropDef, object> overridePropValues = null, bool keepCheckedOut = false)
         {
             //Get the binary data for the file to be synced from the filestore service.
             ACW.ByteArray downloadTicket = null;
@@ -508,8 +509,11 @@ namespace Vault_API_Sample_ManageProperties
                     if (propMonikers.TryGetValue(moniker, out ACW.PropDef propDef) &&
                         overridePropValues.TryGetValue(propDef, out object overrideValue))
                     {
+                        // apply dateOnly and boolAsInt conversion options to the override value
+                        object convertedValue = ConvertOverrideValue(overrideValue, propDef.Typ);
+
                         // update the file property value
-                        writeReq.Val = overrideValue;
+                        writeReq.Val = convertedValue;
 
                         // update the BOM data if this property is part of the BOM
                         if (currentBOM != null)
@@ -521,7 +525,7 @@ namespace Vault_API_Sample_ManageProperties
                                 if (bOMCompAttr != null)
                                 {
                                     // update the BOM component attribute value based on the property type and conversion options for date and bool types.
-                                    bOMCompAttr.Val = overrideValue.ToString();
+                                    bOMCompAttr.Val = convertedValue.ToString();
                                 }
                             }
                         }
@@ -543,7 +547,7 @@ namespace Vault_API_Sample_ManageProperties
                 // checkin file
                 file = webSrvMgr.DocumentService.CheckinUploadedFile(
                     file.MasterId,
-                    comment, /*keepCheckedOut*/false, /*lastWrite*/DateTime.Now,
+                    comment, /*keepCheckedOut*/keepCheckedOut, /*lastWrite*/DateTime.Now,
                     associations,
                     /*bom*/currentBOM, /*copyBom*/false, // update BOM
                     file.Name, file.FileClass, file.Hidden, // preserve these attributes
@@ -983,6 +987,46 @@ namespace Vault_API_Sample_ManageProperties
             }
 
             return compProp.Val;
+        }
+
+        /// <summary>
+        /// Converts an override property value to the appropriate format based on property type and conversion options.
+        /// Handles date-only and bool-as-int conversions if configured, consistent with ConvertPropertyValue.
+        /// </summary>
+        /// <param name="value">The override value to convert</param>
+        /// <param name="dataType">The property data type from the property definition</param>
+        /// <returns>The converted property value</returns>
+        private object ConvertOverrideValue(object value, ACW.DataType dataType)
+        {
+            if (value == null)
+                return null;
+
+            switch (dataType)
+            {
+                case ACW.DataType.DateTime:
+                    if (value is DateTime dateValue)
+                    {
+                        if (dateOnly)
+                        {
+                            return dateValue.Date.ToShortDateString();
+                        }
+                        return dateValue;
+                    }
+                    break;
+
+                case ACW.DataType.Bool:
+                    if (value is bool boolValue)
+                    {
+                        if (boolAsInt)
+                        {
+                            return boolValue ? 1 : 0;
+                        }
+                        return boolValue;
+                    }
+                    break;
+            }
+
+            return value;
         }
 
         #endregion private helper methods
