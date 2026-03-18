@@ -1,4 +1,4 @@
-# ManageProperties Class
+﻿# ManageProperties Class
 
 ## Namespace
 `Vault_API_Sample_ManageProperties`
@@ -37,6 +37,7 @@ public ManageProperties(
 The constructor performs the following initialization operations:
 - Caches all property definitions for FILE and ITEM entity classes
 - Caches property definition infos to avoid repeated API calls
+- Builds a `PropDefInfo` lookup dictionary by Id for the FILE entity class, enabling O(1) lookups during property classification and moniker mapping
 - Creates a mapping of display names to system names for file properties
 - Caches the server configuration for efficient provider lookups
 
@@ -103,7 +104,7 @@ This method intelligently splits properties into two categories:
 - **Mapped properties**: Properties that have write mappings to the file's content provider. These are updated through the filestore service write-to-file process to ensure they are written back to the physical file.
 - **Unmapped properties**: Properties without write mappings. These are updated directly in the Vault database using `DocumentService.UpdateFileProperties`.
 
-The method automatically determines the file's content provider and checks each property's mapping configuration to route it to the appropriate update mechanism.
+The method delegates to `ResolveFileProvider` to determine the file's content source provider, then uses `ClassifyProperties` to route each property to the appropriate update mechanism. Mapped properties are passed as overrides to `SyncProperties`, while unmapped properties are updated via `UpdateProperties`.
 
 #### Example
 ```csharp
@@ -185,13 +186,14 @@ public File[] UpdateFileProperties(
 
 #### Remarks
 This batch overload provides significant performance improvements by:
-- **Batching provider lookups**: Gets providers for all files in a single API call
+- **Batching provider lookups**: Uses `ResolveFileProviders` to get providers for all files in a single API call, with an internal cache that avoids repeated lookups for files sharing the same provider name
+- **Shared classification logic**: Uses `ClassifyProperties` (the same helper used by the single-file overload) to split each file's properties into mapped and unmapped categories
 - **Smart routing**: Separates files into those with only unmapped properties (batch processed) vs. files with mapped properties (individual sync required)
 - **Optimized for mixed scenarios**: Automatically handles files that have both mapped and unmapped properties
 
 The method processes files in two groups:
 1. **Files with unmapped properties only**: Updated using `UpdatePropertiesBatch` for maximum performance
-2. **Files with mapped properties**: Processed individually using `UpdateProperties` and `SyncProperties` to handle property mappings correctly
+2. **Files with mapped properties**: Processed individually using `SyncProperties` and `UpdateProperties` to handle property mappings correctly
 
 **Performance Note:** For files with only unmapped properties, this method provides the same performance gains as `UpdatePropertiesBatch` (10-50x faster). Files with mapped properties are still processed individually due to the requirements of the filestore sync operation.
 
@@ -291,7 +293,8 @@ public File SyncProperties(
     out PropWriteResults writeResults,
     out string[] cloakedEntityClasses,
     bool force = false,
-    Dictionary<PropDef, object> overridePropValues = null
+    Dictionary<PropDef, object> overridePropValues = null,
+    bool keepCheckedOut = false
 )
 ```
 
@@ -306,6 +309,7 @@ public File SyncProperties(
 | `cloakedEntityClasses` | `String[]` | *(Output)* Array of entity class IDs that couldn't be accessed due to insufficient permissions. |
 | `force` | `Boolean` | *(Optional)* If `true`, forces sync even if no property compliance failures exist. Default is `false`. |
 | `overridePropValues` | `Dictionary<PropDef, Object>` | *(Optional)* Dictionary of property definitions and values to override during sync. If `null`, properties are synced as-is from the file. |
+| `keepCheckedOut` | `Boolean` | *(Optional)* If `true`, keeps the file checked out after the sync check-in. This is used internally by `UpdateFileProperties` when unmapped properties still need to be updated after sync. Default is `false`. |
 
 #### Returns
 | Type | Description |
@@ -314,20 +318,22 @@ public File SyncProperties(
 
 #### Remarks
 This method performs the following operations:
-1. Checks for property compliance failures (unless `force` is `true`)
+1. Checks for property compliance failures (unless `force` is `true` or `overridePropValues` are provided)
 2. Checks out the file if needed
 3. Retrieves component properties from the file
 4. Checks for permissions issues (cloaked entities)
-5. Converts property values based on configured options (date-only, bool-as-int)
-6. Applies override values if provided
-7. Writes properties back to the physical file using the filestore service
-8. Checks in the file with the updated properties
+5. Converts component property values using `ApplyTypeConversion` based on configured options (`dateOnly`, `boolAsInt`)
+6. Builds override moniker mappings using `BuildOverrideMonikerMap` if override values are provided
+7. Applies override values using `ApplyOverridesToWriteProps`, which also respects the `dateOnly` and `boolAsInt` conversion options for override values
+8. Updates BOM data if overridden properties are part of the BOM
+9. Writes properties back to the physical file using the filestore service
+10. Checks in the file with the updated properties
 
 The method automatically handles:
 - Files checked out by the current user
 - Files checked out by other users (returns without sync)
 - Permission issues with linked entities
-- Property type conversions
+- Property type conversions (both for synced component values and override values)
 
 **Warning:** Component-level properties cannot be synced without CAD integration.
 
@@ -413,10 +419,11 @@ This method is typically called internally by `UpdateFileProperties` for unmappe
 
 The method:
 1. Checks out the file
-2. Updates the properties using `DocumentService.UpdateFileProperties`
-3. Creates a new version by copying the existing file data
-4. Preserves file associations
-5. Checks in the file
+2. Builds the property instance array using `BuildPropInstParamArray`
+3. Updates the properties using `DocumentService.UpdateFileProperties`
+4. Creates a new version by copying the existing file data
+5. Preserves file associations
+6. Checks in the file
 
 **Note:** This method does not write properties back to the physical file. Use `SyncProperties` or `UpdateFileProperties` for properties that need to be written to the file.
 
@@ -476,12 +483,13 @@ public File[] UpdatePropertiesBatch(
 #### Remarks
 This method provides significant performance improvements over calling `UpdateProperties` multiple times by:
 - **Batching the property update API call**: Uses `DocumentService.UpdateFileProperties` with arrays to update all files in one server round-trip
+- **Shared helper usage**: Uses `BuildPropInstParamArray` (the same helper used by `UpdateProperties`) to construct property arrays for each file
 - **Reducing API overhead**: Fewer network calls mean faster execution, especially over high-latency connections
 - **Optimized for bulk operations**: Ideal for scenarios like batch imports, automated updates, or mass property corrections
 
 The method:
 1. Checks out all files that can be checked out (skips files checked out by others)
-2. Builds property arrays for all files
+2. Builds property arrays for all files using `BuildPropInstParamArray`
 3. Updates all properties in a single batched API call
 4. Checks in each file individually (preserving file-specific associations)
 5. Handles errors gracefully by undoing checkouts on failure
@@ -624,6 +632,83 @@ File updatedFile = manageProps.UpdateFileProperties(
 
 ---
 
+## Internal Architecture
+
+The public methods delegate to a set of focused private helper methods. This section documents these helpers to aid debugging and maintenance.
+
+### Provider Resolution
+
+| Method | Purpose |
+|--------|---------|
+| `ResolveFileProvider(long fileId)` | Resolves the content source provider for a single file by reading its `Provider` property and matching it to the server configuration. Returns `null` if no provider is found. |
+| `ResolveFileProviders(long[] fileIds)` | Batch-resolves providers for multiple files in a single API call. Internally caches resolved providers by name so files sharing the same provider (e.g., multiple `.ipt` files) only trigger one lookup. |
+| `ResolveProviderByName(string providerName)` | Matches a provider display name to a `CtntSrc` in the server configuration. Falls back to the `IFilter` provider if no match is found. |
+
+### Property Classification
+
+| Method | Purpose |
+|--------|---------|
+| `ClassifyProperties(...)` | Splits a property value dictionary into **mapped** (filestore write-back) and **unmapped** (direct database) categories based on the file's content source provider. Unmapped always contains all properties; mapped contains only those with a write mapping. Used by both the single-file and batch `UpdateFileProperties` overloads. |
+| `IsPropertyMappedToProvider(PropDefInfo, CtntSrc)` | Determines whether a single property has a write mapping to the given content source provider by inspecting `EntClassCtntSrcPropCfgArray` and `MapDirectionArray`. |
+
+### Property Building & Conversion
+
+| Method | Purpose |
+|--------|---------|
+| `BuildPropInstParamArray(...)` | Constructs a `PropInstParamArray` from a `Dictionary<PropDef, object>` for use with `DocumentService.UpdateFileProperties`. Used by both `UpdateProperties` and `UpdatePropertiesBatch`. |
+| `BuildOverrideMonikerMap(...)` | Builds a dictionary mapping content source monikers to their `PropDef` for override values. Only monikers that match the file's writable property definitions are included. |
+| `ApplyOverridesToWriteProps(...)` | Applies override property values to the `PropWriteReq` array and updates BOM component attributes if the overridden property is part of the BOM. Applies `dateOnly`/`boolAsInt` conversion via `ApplyTypeConversion`. |
+| `ApplyTypeConversion(object, DataType)` | Central conversion method that applies `dateOnly` and `boolAsInt` options to a property value. Used for both component property values (via `ConvertPropertyValue`) and override values (via `ApplyOverridesToWriteProps`). |
+| `ConvertPropertyValue(CompProp, DataType)` | Extracts the value from a `CompProp` and delegates to `ApplyTypeConversion`. |
+| `ConvertStringToPropertyType(string, DataType)` | Parses a string value into the appropriate CLR type (`DateTime`, `double`, `bool`, etc.) based on the property's `DataType`. |
+
+### File Operations
+
+| Method | Purpose |
+|--------|---------|
+| `EnsureFileCheckedOut(...)` | Ensures a file is checked out by the current user. Returns `false` if checked out by another user. Handles the three cases: not checked out, checked out by current user, checked out by someone else. |
+| `GetFileAssociations(...)` | Retrieves file associations (parent-child references) to preserve them during check-in operations. |
+
+### Call Graph
+
+The following diagram shows how public methods delegate to private helpers:
+
+```
+UpdateFileProperties (single file)
+├── ResolveFileProvider
+│   └── ResolveProviderByName
+├── ClassifyProperties
+│   └── IsPropertyMappedToProvider
+├── SyncProperties
+│   ├── EnsureFileCheckedOut
+│   ├── ConvertPropertyValue
+│   │   └── ApplyTypeConversion
+│   ├── BuildOverrideMonikerMap
+│   ├── ApplyOverridesToWriteProps
+│   │   └── ApplyTypeConversion
+│   └── GetFileAssociations
+└── UpdateProperties
+    ├── EnsureFileCheckedOut
+    ├── BuildPropInstParamArray
+    └── GetFileAssociations
+
+UpdateFileProperties (batch)
+├── ResolveFileProviders
+│   └── ResolveProviderByName
+├── ClassifyProperties (per file)
+│   └── IsPropertyMappedToProvider
+├── UpdatePropertiesBatch (unmapped-only files)
+│   ├── EnsureFileCheckedOut (per file)
+│   ├── BuildPropInstParamArray (per file)
+│   └── GetFileAssociations (per file)
+├── SyncProperties (files with mapped props)
+│   └── (same as above)
+└── UpdateProperties (files with both)
+    └── (same as above)
+```
+
+---
+
 ## Performance Considerations
 
 ### Caching Strategy
@@ -631,11 +716,13 @@ The `ManageProperties` class implements an aggressive caching strategy to minimi
 
 - **Property Definitions**: Cached during initialization for FILE and ITEM entity classes
 - **Property Definition Infos**: Cached to avoid repeated calls to `GetPropertyDefinitionInfosByEntityClassId`
+- **PropDefInfo Lookup by Id**: Pre-built dictionary (`filePropDefInfoById`) for O(1) lookups during property classification and moniker mapping, avoiding repeated `.ToDictionary()` calls
 - **Server Configuration**: Cached to avoid repeated calls to `GetServerConfiguration`
 - **Display Name Mappings**: Pre-computed mapping of display names to system names
+- **Provider Name Cache**: During batch provider resolution (`ResolveFileProviders`), resolved providers are cached by name so files sharing the same provider type avoid redundant lookups
 
 ### API Call Reduction
-Compared to naive implementations, this class reduces API calls by approximately **50-70%** per operation by:
+Compared to native implementations, this class reduces API calls by approximately **50-70%** per operation by:
 - Reusing cached data across multiple operations
 - Batch retrieving property definitions during initialization
 - Using direct dictionary lookups instead of LINQ queries where possible
@@ -671,5 +758,4 @@ For maximum performance when updating multiple files, use batch methods instead 
 **Smart Routing in Batch `UpdateFileProperties`:**
 - Files with **unmapped properties only**: Processed using `UpdatePropertiesBatch` (maximum performance)
 - Files with **mapped properties**: Processed individually using `SyncProperties` (required for filestore operations)
-- Files with **both mapped and unmapped**: Unmapped updated first, then synced
-````````
+- Files with **both mapped and unmapped**: Synced first (keeping checked out), then unmapped properties updated
