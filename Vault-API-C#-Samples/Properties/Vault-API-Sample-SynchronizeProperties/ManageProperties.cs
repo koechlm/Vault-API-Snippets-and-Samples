@@ -83,34 +83,64 @@ namespace Vault_API_Sample_ManageProperties
             serverConfig = webSrvMgr.AdminService.GetServerConfiguration();
         }
 
+        /// <summary>
+        /// Updates file properties for multiple files by intelligently routing them to either writeToFile (filestore service) or updateDb (direct database) update paths.
+        /// This overload is for single file update.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="comment"></param>
+        /// <param name="allowSync"></param>
+        /// <param name="newPropValues"></param>
+        /// <param name="writeResults"></param>
+        /// <param name="cloakedEntityClasses"></param>
+        /// <param name="force"></param>
+        /// <returns></returns>
         public ACW.File UpdateFileProperties(ACW.File file, string comment, bool allowSync, Dictionary<ACW.PropDef, object> newPropValues,
             out ACW.PropWriteResults writeResults, out string[] cloakedEntityClasses, bool force = false)
         {
             // Resolve the provider for this file
             CtntSrc provider = ResolveFileProvider(file.Id);
 
-            // Split properties into mapped (filestore write-back) and unmapped (direct database) categories
+            // Classify into three categories based on mapping direction
             ClassifyProperties(newPropValues, provider,
-                out Dictionary<ACW.PropDef, object> mappedPropValues,
+                out Dictionary<ACW.PropDef, object> writeOnlyPropValues,
+                out Dictionary<ACW.PropDef, object> readWritePropValues,
                 out Dictionary<ACW.PropDef, object> unmappedPropValues);
 
-            bool keepCheckedOut = unmappedPropValues.Count > 0 && mappedPropValues.Count > 0;
-            file = SyncProperties(file, comment, allowSync, out writeResults, out cloakedEntityClasses, force, overridePropValues: mappedPropValues, keepCheckedOut: keepCheckedOut);
-            file = UpdateProperties(file, comment, unmappedPropValues);
+            // Build the DB update set: Write-only + Unmapped need explicit DB update
+            Dictionary<ACW.PropDef, object> dbUpdateProps = new Dictionary<ACW.PropDef, object>();
+            foreach (var kvp in writeOnlyPropValues) dbUpdateProps[kvp.Key] = kvp.Value;
+            foreach (var kvp in unmappedPropValues) dbUpdateProps[kvp.Key] = kvp.Value;
+
+            // Build the sync override set: Write-only + ReadAndWrite need file write via sync
+            Dictionary<ACW.PropDef, object> syncOverrideProps = new Dictionary<ACW.PropDef, object>();
+            foreach (var kvp in writeOnlyPropValues) syncOverrideProps[kvp.Key] = kvp.Value;
+            foreach (var kvp in readWritePropValues) syncOverrideProps[kvp.Key] = kvp.Value;
+
+            // Execute: set DB values without check-in first, then sync handles file write + check-in.
+            // DB update must not check in, because check-in triggers Read mappings that would
+            // overwrite ReadAndWrite DB values with old file content before sync writes the new values.
+            if (dbUpdateProps.Count > 0)
+            {
+                SetDbPropValues(ref file, comment, dbUpdateProps);
+            }
+            // Sync always runs: with overrides for mapped properties, without overrides to resolve compliance
+            file = SyncProperties(file, comment, allowSync, out writeResults, out cloakedEntityClasses, force,
+                overridePropValues: syncOverrideProps.Count > 0 ? syncOverrideProps : null);
 
             return file;
         }
 
 
         /// <summary>
-        /// Updates file properties for multiple files by intelligently routing them to either mapped (filestore service) or unmapped (direct database) update paths.
+        /// Updates file properties for multiple files by intelligently routing them to either writeToFile (filestore service) or updateDb (direct database) update paths.
         /// This overload provides batch processing capabilities for improved performance when updating multiple files.
         /// </summary>
         /// <param name="files">Array of files to update properties on</param>
         /// <param name="comment">Comment to use for the new versions</param>
         /// <param name="allowSync">If true, allows the filestore to retrieve files from another filestore if not available locally</param>
         /// <param name="propValuesByFile">Array of property value dictionaries, one for each file (must match the length of files array)</param>
-        /// <param name="writeResultsByFile">Output array of write results for mapped properties, one per file</param>
+        /// <param name="writeResultsByFile">Output array of write results for writeToFile properties, one per file</param>
         /// <param name="cloakedEntityClassesByFile">Output array of cloaked entity classes, one per file</param>
         /// <param name="force">If true, forces the sync operation even if no compliance failures exist</param>
         /// <returns>Array of updated file objects</returns>
@@ -135,88 +165,59 @@ namespace Vault_API_Sample_ManageProperties
                 writeResultsByFile[i] = new ACW.PropWriteResults();
             }
 
-            // Split properties for each file into mapped and unmapped
-            Dictionary<ACW.PropDef, object>[] mappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
-            Dictionary<ACW.PropDef, object>[] unmappedPropValuesByFile = new Dictionary<ACW.PropDef, object>[files.Length];
-
             // Batch-resolve providers for all files
             Dictionary<long, CtntSrc> providersByFileId = ResolveFileProviders(files.Select(f => f.Id).ToArray());
 
-            // Process each file
+            // Classify each file's properties into the three categories,
+            // then derive the two execution sets per file: dbUpdateProps and syncOverrideProps
+            Dictionary<ACW.PropDef, object>[] dbUpdatePropsByFile = new Dictionary<ACW.PropDef, object>[files.Length];
+            Dictionary<ACW.PropDef, object>[] syncOverridePropsByFile = new Dictionary<ACW.PropDef, object>[files.Length];
+
             for (int fileIndex = 0; fileIndex < files.Length; fileIndex++)
             {
                 providersByFileId.TryGetValue(files[fileIndex].Id, out CtntSrc provider);
 
                 ClassifyProperties(propValuesByFile[fileIndex], provider,
-                    out Dictionary<ACW.PropDef, object> mapped,
+                    out Dictionary<ACW.PropDef, object> writeOnly,
+                    out Dictionary<ACW.PropDef, object> readWrite,
                     out Dictionary<ACW.PropDef, object> unmapped);
 
-                mappedPropValuesByFile[fileIndex] = mapped;
-                unmappedPropValuesByFile[fileIndex] = unmapped;
-            }
+                // DB update set: Write-only + Unmapped
+                Dictionary<ACW.PropDef, object> dbUpdate = new Dictionary<ACW.PropDef, object>();
+                foreach (var kvp in writeOnly) dbUpdate[kvp.Key] = kvp.Value;
+                foreach (var kvp in unmapped) dbUpdate[kvp.Key] = kvp.Value;
 
-            // Separate files into those with mapped vs unmapped only properties
-            List<ACW.File> filesWithUnmappedOnly = new List<ACW.File>();
-            List<Dictionary<ACW.PropDef, object>> unmappedOnlyProps = new List<Dictionary<ACW.PropDef, object>>();
-            List<int> unmappedOnlyIndices = new List<int>();
+                // Sync override set: Write-only + ReadAndWrite
+                Dictionary<ACW.PropDef, object> syncOverride = new Dictionary<ACW.PropDef, object>();
+                foreach (var kvp in writeOnly) syncOverride[kvp.Key] = kvp.Value;
+                foreach (var kvp in readWrite) syncOverride[kvp.Key] = kvp.Value;
 
-            List<ACW.File> filesWithMapped = new List<ACW.File>();
-            List<int> filesWithMappedIndices = new List<int>();
-
-            for (int i = 0; i < files.Length; i++)
-            {
-                if (unmappedPropValuesByFile[i].Count > 0 && mappedPropValuesByFile[i].Count == 0)
-                {
-                    filesWithUnmappedOnly.Add(files[i]);
-                    unmappedOnlyProps.Add(unmappedPropValuesByFile[i]);
-                    unmappedOnlyIndices.Add(i);
-                }
-                else if (mappedPropValuesByFile[i].Count > 0)
-                {
-                    filesWithMapped.Add(files[i]);
-                    filesWithMappedIndices.Add(i);
-                }
+                dbUpdatePropsByFile[fileIndex] = dbUpdate;
+                syncOverridePropsByFile[fileIndex] = syncOverride;
             }
 
             ACW.File[] resultFiles = new ACW.File[files.Length];
 
-            // Batch update unmapped-only files
-            if (filesWithUnmappedOnly.Count > 0)
+            // Process each file: set DB values without check-in first, then sync handles file write + check-in.
+            // DB update must not check in, because check-in triggers Read mappings that would
+            // overwrite ReadAndWrite DB values with old file content before sync writes the new values.
+            for (int i = 0; i < files.Length; i++)
             {
-                ACW.File[] updatedUnmappedFiles = UpdatePropertiesBatch(
-                    filesWithUnmappedOnly.ToArray(),
-                    comment,
-                    unmappedOnlyProps.ToArray(),
-                    keepCheckedOut: false
-                );
+                ACW.File file = files[i];
 
-                for (int i = 0; i < updatedUnmappedFiles.Length; i++)
+                if (dbUpdatePropsByFile[i].Count > 0)
                 {
-                    resultFiles[unmappedOnlyIndices[i]] = updatedUnmappedFiles[i];
+                    SetDbPropValues(ref file, comment, dbUpdatePropsByFile[i]);
                 }
-            }
 
-            // Process files with mapped properties individually (requires sync operation)
-            for (int i = 0; i < filesWithMapped.Count; i++)
-            {
-                int originalIndex = filesWithMappedIndices[i];
-                ACW.File file = filesWithMapped[i];
-
-                bool keepCheckedOut = mappedPropValuesByFile[originalIndex].Count > 0;
-
+                // Sync always runs: with overrides for mapped properties, without overrides to resolve compliance
                 file = SyncProperties(file, comment, allowSync,
-                    out writeResultsByFile[originalIndex],
-                    out cloakedEntityClassesByFile[originalIndex],
+                    out writeResultsByFile[i],
+                    out cloakedEntityClassesByFile[i],
                     force,
-                    overridePropValues: mappedPropValuesByFile[originalIndex],
-                    keepCheckedOut: keepCheckedOut);
+                    overridePropValues: syncOverridePropsByFile[i].Count > 0 ? syncOverridePropsByFile[i] : null);
 
-                if (unmappedPropValuesByFile[originalIndex].Count > 0)
-                {
-                    file = UpdateProperties(file, comment, unmappedPropValuesByFile[originalIndex]);
-                }
-
-                resultFiles[originalIndex] = file;
+                resultFiles[i] = file;
             }
 
             return resultFiles;
@@ -305,7 +306,7 @@ namespace Vault_API_Sample_ManageProperties
                 // Build moniker to property definition mapping for override values
                 Dictionary<string, ACW.PropDef> propMonikers = BuildOverrideMonikerMap(overridePropValues, fileProps);
 
-                // get BOM data to include in the write request so that mapped properties that are also part of the BOM get updated correctly;
+                // get BOM data to include in the write request so that writeToFile properties that are also part of the BOM get updated correctly;
                 BOM currentBOM = webSrvMgr.DocumentService.GetBOMByFileId(file.Id);
 
                 // apply override values using moniker mappings
@@ -341,13 +342,13 @@ namespace Vault_API_Sample_ManageProperties
 
 
         /// <summary>
-        /// Update UDPs of unmapped file properties
+        /// Update UDPs of updateDb file properties
         /// </summary>
         /// <param name="file">File Iteration</param>
         /// <param name="comment">comment</param>
         /// <param name="newPropValues">Dictionary of property definitions and their new values</param>
         /// <returns>Updated file</returns>
-        public ACW.File UpdateProperties(ACW.File file, string comment, Dictionary<ACW.PropDef, object> newPropValues, bool keepCheckedOut = false)
+        public ACW.File UpdateDbPropValues(ACW.File file, string comment, Dictionary<ACW.PropDef, object> newPropValues, bool keepCheckedOut = false)
         {
             ACW.ByteArray downloadTicket = null;
 
@@ -387,7 +388,7 @@ namespace Vault_API_Sample_ManageProperties
 
 
         /// <summary>
-        /// Update UDPs of unmapped file properties for multiple files in a single batch operation.
+        /// Update UDPs of updateDb file properties for multiple files in a single batch operation.
         /// This method leverages the bulk UpdateFileProperties API for better performance when updating multiple files.
         /// </summary>
         /// <param name="files">Array of files to update</param>
@@ -627,19 +628,27 @@ namespace Vault_API_Sample_ManageProperties
         }
 
         /// <summary>
-        /// Classifies property values into mapped (filestore write-back) and unmapped (direct database) categories
-        /// based on the file's content source provider. Unmapped always contains all properties; mapped contains
-        /// only those with a write mapping to the provider.
+        /// Classifies property values into three categories based on mapping direction to the file's content source provider.
+        /// 
+        /// Classification rules:
+        /// - Write-only (Write mapping, no Read mapping) ? writeOnlyPropValues
+        ///   Needs both DB update (check-in won't read back) and sync (to write into file).
+        /// - ReadAndWrite (both Read and Write mappings) ? readWritePropValues
+        ///   Needs sync override only; check-in reads the value back to DB automatically.
+        /// - Unmapped (no mapping to provider) ? unmappedPropValues
+        ///   Needs DB update + check-in only; no file involvement.
         /// </summary>
         private void ClassifyProperties(Dictionary<ACW.PropDef, object> newPropValues, CtntSrc provider,
-            out Dictionary<ACW.PropDef, object> mappedPropValues, out Dictionary<ACW.PropDef, object> unmappedPropValues)
+            out Dictionary<ACW.PropDef, object> writeOnlyPropValues,
+            out Dictionary<ACW.PropDef, object> readWritePropValues,
+            out Dictionary<ACW.PropDef, object> unmappedPropValues)
         {
-            mappedPropValues = new Dictionary<ACW.PropDef, object>();
+            writeOnlyPropValues = new Dictionary<ACW.PropDef, object>();
+            readWritePropValues = new Dictionary<ACW.PropDef, object>();
             unmappedPropValues = new Dictionary<ACW.PropDef, object>();
 
             if (provider == null)
             {
-                // No provider, treat all as unmapped
                 foreach (var kvp in newPropValues)
                 {
                     unmappedPropValues[kvp.Key] = kvp.Value;
@@ -654,24 +663,38 @@ namespace Vault_API_Sample_ManageProperties
 
                 if (filePropDefInfoById.TryGetValue(propDef.Id, out PropDefInfo propDefInfo))
                 {
-                    if (IsPropertyMappedToProvider(propDefInfo, provider))
-                    {
-                        mappedPropValues[propDef] = value;
-                    }
+                    bool hasRead;
+                    bool hasWrite;
+                    GetProviderMappingDirections(propDefInfo, provider, out hasRead, out hasWrite);
 
-                    // add property value update in any case
-                    unmappedPropValues[propDef] = value;
+                    if (hasWrite && hasRead)
+                    {
+                        readWritePropValues[propDef] = value;
+                    }
+                    else if (hasWrite)
+                    {
+                        writeOnlyPropValues[propDef] = value;
+                    }
+                    else
+                    {
+                        // Read-only or unmapped: direct DB update
+                        unmappedPropValues[propDef] = value;
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Determines whether a property has a write mapping to the given content source provider.
+        /// Determines the mapping directions of a property for the given content source provider.
+        /// A property can have separate Read and Write entries in CtntSrcPropDefArray for the same provider.
         /// </summary>
-        private bool IsPropertyMappedToProvider(PropDefInfo propDefInfo, CtntSrc provider)
+        private void GetProviderMappingDirections(PropDefInfo propDefInfo, CtntSrc provider, out bool hasRead, out bool hasWrite)
         {
+            hasRead = false;
+            hasWrite = false;
+
             if (propDefInfo.EntClassCtntSrcPropCfgArray == null)
-                return false;
+                return;
 
             foreach (EntClassCtntSrcPropCfg contentSource in propDefInfo.EntClassCtntSrcPropCfgArray)
             {
@@ -680,15 +703,15 @@ namespace Vault_API_Sample_ManageProperties
 
                 for (int i = 0; i < contentSource.CtntSrcPropDefArray.Length; i++)
                 {
-                    if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id
-                        && contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                    if (contentSource.CtntSrcPropDefArray[i].CtntSrcId == provider.Id)
                     {
-                        return true;
+                        if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Read)
+                            hasRead = true;
+                        else if (contentSource.MapDirectionArray[i] == ACW.MappingDirection.Write)
+                            hasWrite = true;
                     }
                 }
             }
-
-            return false;
         }
 
         /// <summary>
@@ -917,6 +940,25 @@ namespace Vault_API_Sample_ManageProperties
                 ).ToArray();
 
             return associations;
+        }
+
+        /// <summary>
+        /// Sets property values in the Vault database without checking in the file.
+        /// The file is checked out if not already, and remains checked out after the call.
+        /// This avoids triggering Read mappings that would overwrite DB values with old file content.
+        /// The caller is responsible for the subsequent check-in (typically via SyncProperties).
+        /// </summary>
+        private void SetDbPropValues(ref ACW.File file, string comment, Dictionary<ACW.PropDef, object> newPropValues)
+        {
+            ACW.ByteArray downloadTicket = null;
+
+            if (!EnsureFileCheckedOut(webSrvMgr, ref file, comment, out downloadTicket))
+            {
+                return;
+            }
+
+            PropInstParamArray propInstParamArray = BuildPropInstParamArray(newPropValues);
+            webSrvMgr.DocumentService.UpdateFileProperties(new long[] { file.MasterId }, new PropInstParamArray[] { propInstParamArray });
         }
 
         #endregion private helper methods
