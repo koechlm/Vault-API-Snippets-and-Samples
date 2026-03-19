@@ -1,9 +1,11 @@
-﻿using System;
+﻿
+using System;
+using System.Collections.Generic;
 using System.Linq;
+
 using ACW = Autodesk.Connectivity.WebServices;
 using Autodesk.Connectivity.WebServicesTools;
 using Vault = Autodesk.DataManagement.Client.Framework.Vault;
-using System.Collections.Generic;
 
 // Synchronize properties sample helper class
 
@@ -63,8 +65,8 @@ namespace Vault_API_Sample_ManageProperties
                     Console.WriteLine();
 
                     // read the options for date and bool conversion from the Vault settings; both settings store 0/1 values, so we check if the value is 1 to determine if the option is enabled or not; if the options are enabled, we will convert dates to date-only values and bools to integers during the property sync process; if the options are disabled, we will sync properties with their full date/time values and bool values as true/false
-                    bool dateOnly = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.DateMappingOption") == "1";
-                    bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateProperties.WriteBoolPropertyAsN") == "1";
+                    bool dateOnly = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateDbPropValues.DateMappingOption") == "1";
+                    bool boolAsInt = webServiceManager.KnowledgeVaultService.GetVaultOption("Autodesk.EDM.UpdateDbPropValues.WriteBoolPropertyAsN") == "1";
 
 
                     #region single file update
@@ -74,17 +76,16 @@ namespace Vault_API_Sample_ManageProperties
 
                     newPropValues = new Dictionary<string, string>()
                     {
-                        { "Document Code (DCC)", DateTime.Now.ToLongTimeString() },
-                        { "Title", "NOW=" + DateTime.Now.ToShortTimeString() },
-                        { "Sync-Test-Text", "Today is " + DateTime.Now.ToShortDateString() },
+                        { "Change Description", "Change-RW " + DateTime.Now.ToString() },
+                        { "Title", "TITEL-RW =" + DateTime.Now.ToString() },
+                        { "Sync-Test-Text", "Text-RW " + DateTime.Now.ToString() },
                         { "Sync-Test-Bool", "True" },
                         { "Sync-Test-Date", DateTime.Now.AddDays(3).ToString() },
-                        { "Sync-Test-Number", "123,54" },
+                        { "Sync-Test-Number", DateTime.Now.Millisecond.ToString() },
                         { "Unmapped-Test-Text", "This is a test" },
                         { "Unmapped-Test-Bool", "False" },
                         { "Unmapped-Test-Date", DateTime.Now.AddDays(-3).ToString() },
-                        { "Unmapped-Test-Number", "987,65" }
-
+                        { "Unmapped-Test-Number", DateTime.Now.AddMilliseconds(100).Millisecond.ToString() }
                     };
 
                     // Convert string dictionary to typed property dictionary
