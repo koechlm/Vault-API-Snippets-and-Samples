@@ -1,9 +1,11 @@
-﻿using System;
+﻿
+using System;
+using System.Collections.Generic;
 using System.Linq;
+
 using ACW = Autodesk.Connectivity.WebServices;
 using Autodesk.Connectivity.WebServicesTools;
 using Vault = Autodesk.DataManagement.Client.Framework.Vault;
-using System.Collections.Generic;
 
 // Synchronize properties sample helper class
 
@@ -74,7 +76,7 @@ namespace Vault_API_Sample_ManageProperties
 
                     newPropValues = new Dictionary<string, string>()
                     {
-                        { "Source File", "Copy of previous version" },
+                        { "Change Description", "Change-RW " + DateTime.Now.ToString() },
                         { "Title", "TITEL-RW =" + DateTime.Now.ToString() },
                         { "Sync-Test-Text", "Text-RW " + DateTime.Now.ToString() },
                         { "Sync-Test-Bool", "True" },
