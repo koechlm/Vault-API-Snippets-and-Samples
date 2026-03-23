@@ -254,7 +254,20 @@ namespace Vault_API_Sample_ManageProperties
                     || complianceFailures.Sum(cf => (cf.PropEquivFailArray != null ? cf.PropEquivFailArray.Length : 0)) == 0
                     )
                 {
-                    return file;
+                    // get the latest file info to return any changes that might have happened since the file was checked out, without doing sync.
+                    EnsureFileCheckedOut(webSrvMgr, ref file, comment, out downloadTicket);
+                    // keep file associations as they are
+                    ACW.FileAssocParam[] associations = GetFileAssociations(webSrvMgr, file);
+
+                    // checkin and exit without doing sync, as there are no compliance failures and no override values to apply
+                    return webSrvMgr.DocumentService.CheckinUploadedFile(
+                        file.MasterId,
+                        comment, /*keepCheckedOut*/keepCheckedOut, /*lastWrite*/DateTime.Now,
+                        associations,
+                        /*bom*/null, /*copyBom*/true,
+                        file.Name, file.FileClass, file.Hidden,
+                        null /*no file content change, so no upload ticket*/
+                        );
                 }
             }
 
@@ -333,7 +346,7 @@ namespace Vault_API_Sample_ManageProperties
             }
             finally
             {
-                if (file.CheckedOut)
+                if (webSrvMgr.DocumentService.GetLatestFileByMasterId(file.MasterId).CheckedOut)
                     file = webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
             }
 
