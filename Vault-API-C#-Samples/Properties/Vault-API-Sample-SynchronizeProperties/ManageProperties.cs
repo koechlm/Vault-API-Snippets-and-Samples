@@ -346,7 +346,7 @@ namespace Vault_API_Sample_ManageProperties
             }
             finally
             {
-                if (webSrvMgr.DocumentService.GetLatestFileByMasterId(file.MasterId).CheckedOut)
+                if (webSrvMgr.DocumentService.GetLatestFileByMasterId(file.MasterId).CheckedOut && !keepCheckedOut)
                     file = webSrvMgr.DocumentService.UndoCheckoutFile(file.MasterId, out downloadTicket);
             }
 
