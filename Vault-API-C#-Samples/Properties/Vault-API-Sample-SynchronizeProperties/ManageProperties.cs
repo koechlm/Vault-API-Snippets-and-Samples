@@ -46,8 +46,9 @@ namespace Vault_API_Sample_ManageProperties
         /// <summary>
         /// Constructor, initializing the class leveraging current connection and Vault behavior settings for property value conversion.
         /// </summary>
-        /// <param name="dateOnly"></param>
-        /// <param name="boolAsInt"></param>
+        /// <param name="connection">Active Vault connection</param>
+        /// <param name="dateOnly">If true, date properties are formatted without time</param>
+        /// <param name="boolAsInt">If true, boolean properties are returned as 0/1 instead of true/false</param>
         public ManageProperties(Connection connection, bool dateOnly = true, bool boolAsInt = false)
         {
             this.dateOnly = dateOnly;
@@ -234,6 +235,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="cloakedEntityClasses">if you can't read an entity where properties would come from, its entity class is returned here</param>
         /// <param name="force">skip check for equivalence and always do a sync, creating a new version</param>
         /// <param name="overridePropValues">[Optional] dictionary of property definitions and their override values</param>
+        /// <param name="keepCheckedOut">If true, keeps the file checked out after sync</param>
         /// <returns>the file returned from the checkin, same as the input if no property sync is done</returns>
         public ACW.File SyncProperties(ACW.File file, string comment, bool allowSync, out ACW.PropWriteResults writeResults,
             out string[] cloakedEntityClasses, bool force = false, Dictionary<ACW.PropDef, object> overridePropValues = null, bool keepCheckedOut = false)
@@ -360,6 +362,7 @@ namespace Vault_API_Sample_ManageProperties
         /// <param name="file">File Iteration</param>
         /// <param name="comment">comment</param>
         /// <param name="newPropValues">Dictionary of property definitions and their new values</param>
+        /// <param name="keepCheckedOut">If true, keeps the file checked out after updating</param>
         /// <returns>Updated file</returns>
         public ACW.File UpdateDbPropValues(ACW.File file, string comment, Dictionary<ACW.PropDef, object> newPropValues, bool keepCheckedOut = false)
         {

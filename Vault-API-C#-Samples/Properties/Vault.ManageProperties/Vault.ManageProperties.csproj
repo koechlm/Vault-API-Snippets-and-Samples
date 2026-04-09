@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>Vault_API_Sample_ManageProperties</RootNamespace>
+    <AssemblyName>Vault.ManageProperties</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Vault.ManageProperties</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Markus Koechl</Authors>
+    <Company>Autodesk</Company>
+    <Product>Autodesk Vault Professional - ManageProperties Helper</Product>
+    <Description>Helper class to manage Autodesk Vault file properties including updates and synchronization using the filestore service. Provides optimized methods for updating file properties, synchronizing properties between Vault and CAD files, and converting property values between different formats. Requires the Autodesk Vault 2026 SDK to be installed.</Description>
+    <Copyright>Copyright © Autodesk 2025, Markus Koechl, Dave Mink, Doug Redmond</Copyright>
+    <PackageTags>Autodesk;Vault;Properties;Sync;PropertySync;ManageProperties;VaultAPI</PackageTags>
+    <RepositoryUrl>https://github.com/koechlm/Vault-API-Snippets-and-Samples</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/koechlm/Vault-API-Snippets-and-Samples</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- Assembly versioning (matches Vault 2026 SDK conventions) -->
+    <AssemblyVersion>31.0.84.0</AssemblyVersion>
+    <FileVersion>31.0.84.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Link to the shared ManageProperties.cs source file -->
+    <Compile Include="..\Vault-API-Sample-SynchronizeProperties\ManageProperties.cs" Link="ManageProperties.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Package README for GitHub Packages display -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <!-- Full API reference documentation included in the package -->
+    <None Include="..\Vault-API-Sample-SynchronizeProperties\ManageProperties.md" Pack="true" PackagePath="docs\" Link="docs\ManageProperties.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Vault SDK references: consumers must have Autodesk Vault 2026 SDK installed.
+      Private=false ensures these DLLs are NOT bundled in the NuGet package.
+    -->
+    <Reference Include="Autodesk.Connectivity.WebServices">
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.Connectivity.WebServices.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Autodesk.Connectivity.WebServices.WCF">
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.Connectivity.WebServices.WCF.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Autodesk.DataManagement.Client.Framework">
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Autodesk.DataManagement.Client.Framework.Vault">
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Autodesk.DataManagement.Client.Framework.Vault.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
