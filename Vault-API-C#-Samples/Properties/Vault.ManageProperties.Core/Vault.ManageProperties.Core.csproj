@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <PlatformTarget>x64</PlatformTarget>
     <RootNamespace>Vault_API_Sample_ManageProperties</RootNamespace>
@@ -10,11 +10,11 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>Vault.ManageProperties.Core</PackageId>
-    <Version>1.0.0</Version>
+    <Version>2027.0.0</Version>
     <Authors>Markus Koechl</Authors>
     <Company>Autodesk</Company>
     <Product>Autodesk Vault Professional - ManageProperties Helper (.NET 8)</Product>
-    <Description>Helper class to manage Autodesk Vault file properties including updates and synchronization using the filestore service. This is the .NET 8 build targeting the Vault 2026 SDK Core assemblies. Provides optimized methods for updating file properties, synchronizing properties between Vault and CAD files, and converting property values between different formats. Requires the Autodesk Vault 2026 SDK to be installed.</Description>
+    <Description>Helper class to manage Autodesk Vault file properties including updates and synchronization using the filestore service. This is the .NET 8 build targeting the Vault 2027 SDK Core assemblies. Provides optimized methods for updating file properties, synchronizing properties between Vault and CAD files, and converting property values between different formats. Requires the Autodesk Vault 2027 SDK to be installed.</Description>
     <Copyright>Copyright © Autodesk 2025, Markus Koechl, Dave Mink, Doug Redmond</Copyright>
     <PackageTags>Autodesk;Vault;Properties;Sync;PropertySync;ManageProperties;VaultAPI;dotnet8;core</PackageTags>
     <RepositoryUrl>https://github.com/koechlm/Vault-API-Snippets-and-Samples</RepositoryUrl>
@@ -24,10 +24,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 
-    <!-- Assembly versioning (matches Vault 2026 SDK conventions) -->
-    <AssemblyVersion>31.0.84.0</AssemblyVersion>
-    <FileVersion>31.0.84.0</FileVersion>
-    <Platforms>AnyCPU;x64</Platforms>
+    <!-- Assembly versioning (matches Vault 2027 SDK conventions) -->
+    <AssemblyVersion>32.0.71.0</AssemblyVersion>
+    <FileVersion>32.0.71.0</FileVersion>
+    <Platforms>x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,24 +44,24 @@
 
   <ItemGroup>
     <!--
-      Vault SDK Core references: consumers must have Autodesk Vault 2026 SDK installed.
+      Vault SDK Core references: consumers must have Autodesk Vault 2027 SDK installed.
       The Core subdirectory contains .NET 8 builds of the SDK assemblies.
       Private=false ensures these DLLs are NOT bundled in the NuGet package.
     -->
     <Reference Include="Autodesk.Connectivity.WebServices">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Core\Autodesk.Connectivity.WebServices.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2027 SDK\bin\x64\Core\Autodesk.Connectivity.WebServices.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Autodesk.Connectivity.WebServices.WCF">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Core\Autodesk.Connectivity.WebServices.WCF.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2027 SDK\bin\x64\Core\Autodesk.Connectivity.WebServices.WCF.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Autodesk.DataManagement.Client.Framework">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Core\Autodesk.DataManagement.Client.Framework.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2027 SDK\bin\x64\Core\Autodesk.DataManagement.Client.Framework.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Autodesk.DataManagement.Client.Framework.Vault">
-      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2026 SDK\bin\x64\Core\Autodesk.DataManagement.Client.Framework.Vault.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Autodesk Vault 2027 SDK\bin\x64\Core\Autodesk.DataManagement.Client.Framework.Vault.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
