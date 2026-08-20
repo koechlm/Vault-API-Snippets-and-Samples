@@ -2,7 +2,7 @@
 
 **Version:** 2026 (API 31.0.84.0)  
 **Author:** Markus Koechl  
-**Copyright:** © Autodesk 2025
+**Copyright:** Â© Autodesk 2025
 
 ---
 
@@ -25,7 +25,7 @@
 
 The Autodesk Vault API provides programmatic access to Vault Professional, enabling developers to automate workflows, integrate with external systems, and extend Vault functionality. This guide covers both **C# (.NET)** and **PowerShell** implementations.
 
-### What You Can Do with Vault API
+### What Areas of the Vault API are covered by this repositories samples?
 
 - Connect to Vault servers and authenticate users
 - Search, retrieve, and manage files, items, and custom objects
