@@ -1,6 +1,6 @@
 # Vault.ManageProperties.Core
 
-Helper class to manage Autodesk Vault file properties including updates and synchronization using the filestore service. This is the **.NET 8** build targeting the Vault 2026 SDK Core assemblies.
+Helper class to manage Autodesk Vault file properties including updates and synchronization using the filestore service. This is the **.NET 10** build targeting the Vault 2027 SDK Core assemblies.
 
 > For the .NET Framework 4.8 build, see [Vault.ManageProperties](https://github.com/koechlm/Vault-API-Snippets-and-Samples/pkgs/nuget/Vault.ManageProperties).
 
