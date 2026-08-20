@@ -23,7 +23,7 @@
 
 ## Introduction
 
-The Autodesk Vault API provides programmatic access to Vault Professional, enabling developers to automate workflows, integrate with external systems, and extend Vault functionality. This guide covers both **C# (.NET)** and **PowerShell** implementations.
+The Autodesk Vault API provides programmatic access to Vault Professional, enabling developers to automate workflows, integrate with external systems, and extend Vault functionality. This guide covers both **C# (.NET)** and **PowerShell** (deprecated) implementations.
 
 ### What Areas of the Vault API are covered by this repositories samples?
 
