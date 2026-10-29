@@ -1,0 +1,23 @@
+; Vault Explorer .acr file association (template)
+;
+; BEFORE MERGING:
+; 1. Back up the registry (e.g. export HKCR\.acr and HKCR\ACR_auto_file).
+; 2. Replace "Vault Client 2026" with your installed Vault client year/path if different.
+; 3. Requires administrator rights to merge into HKEY_CLASSES_ROOT.
+;
+; Non-admin alternative: right-click any .acr file -> Open with -> Autodesk Vault -> Always use this app.
+;
+; Documentation: Developer Guide.md (Vault Explorer navigation), Navigation/README.md
+; Autodesk KB: https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/File-link-acr-file-is-always-opened-in-latest-Vault-version-in-a-multi-version-environment.html
+
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\.acr]
+@="ACR_auto_file"
+
+[HKEY_CLASSES_ROOT\ACR_auto_file\shell\open\command]
+@="\"C:\\Program Files\\Autodesk\\Vault Client 2026\\Explorer\\Connectivity.VaultPro.exe\" \"%1\""
+
+; Optional: uncomment if navigation still fails after the keys above are correct (some Vault 2021+ installs).
+; [HKEY_CLASSES_ROOT\Applications\Connectivity.VaultPro.exe\shell\open\command]
+; @="\"C:\\Program Files\\Autodesk\\Vault Client 2026\\Explorer\\Connectivity.VaultPro.exe\" \"%1\""

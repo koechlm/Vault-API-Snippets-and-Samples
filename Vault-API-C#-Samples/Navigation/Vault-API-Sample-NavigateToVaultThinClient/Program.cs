@@ -14,6 +14,7 @@ using VDF = Autodesk.DataManagement.Client.Framework;
 
 namespace Vault_API_Sample_NavigateToVaultThinClient
 {
+    // Thin Client navigation uses AutodeskTC URLs in the browser only; it does not use .acr files or Vault Explorer file association.
     class Program
     {
         static void Main(string[] args)

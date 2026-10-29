@@ -46,7 +46,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vault-API-Sample-AutodeskAc
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Navigation", "Navigation", "{4C284F37-317A-4524-888C-9B4F010E3C22}"
 	ProjectSection(SolutionItems) = preProject
+		Vault-API-C#-Samples\Navigation\README.md = Vault-API-C#-Samples\Navigation\README.md
 		Vault-API-C#-Samples\Navigation\Vault Navigation.pptx = Vault-API-C#-Samples\Navigation\Vault Navigation.pptx
+		Vault-API-C#-Samples\Navigation\Vault-Explorer-AcrFileAssociation.template.reg = Vault-API-C#-Samples\Navigation\Vault-Explorer-AcrFileAssociation.template.reg
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Vault-API-Sample-NavigateToVaultExplorer", "Vault-API-C#-Samples\Navigation\Vault-API-Sample-NavigateToVaultExplorer\Vault-API-Sample-NavigateToVaultExplorer.csproj", "{A498CD9E-09EC-4012-AB00-9557B804D4C4}"

@@ -24,8 +24,8 @@ Samples live under `Vault-API-C#-Samples/` and are grouped by topic:
 | ---------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **Login**        | `Vault-API-Sample-LogOnUsingDialog`                      | Log in using the built-in Vault login dialog (VDF Forms).                                                           |
 |                  | `Vault-API-Sample-AutodeskAccountLogin`                  | Authenticate with an Autodesk Account (Click Licensing v9).                                                         |
-| **Navigation**   | `Vault-API-Sample-NavigateToVaultExplorer`               | Launch Vault Explorer and navigate to a file, item, change order, or custom object.                                 |
-|                  | `Vault-API-Sample-NavigateToVaultThinClient`             | Open the Vault Thin Client at a specific entity.                                                                    |
+| **Navigation**   | `Vault-API-Sample-NavigateToVaultExplorer`               | Launch Vault Explorer and navigate via `.acr` files (see [Developer Guide — Vault Explorer navigation](Developer%20Guide.md#2-vault-explorer-navigation-acr-files) if browser links open multiple clients). |
+|                  | `Vault-API-Sample-NavigateToVaultThinClient`             | Open the Vault Thin Client in the browser (`AutodeskTC/...` URLs; no `.acr` files).                                   |
 | **Files**        | `API-FormsApp-UpdateProperties`                          | Windows Forms app for updating file properties via the API.                                                         |
 | **Folders**      | `API-ConsoleApp-CreateFolders`                           | Create folders in the Vault hierarchy.                                                                              |
 | **Items**        | `API-ConsoleApp-PromoteFileToItem`                       | Promote a file to an item.                                                                                          |
@@ -50,6 +50,7 @@ PowerShell scripts are deprecated, as .NET Core/PowerShell 7.2+  no longer allow
 ## Additional Resources
 
 - **[Developer Guide.md](Developer%20Guide.md)** — recommended starting point for new developers
+- **[Navigation samples](Vault-API-C%23-Samples/Navigation/README.md)** — Vault Explorer (`.acr`) vs Thin Client; registry template for `.acr` file association
 - `Autodesk Vault SDK/` — API reference XML documentation for Vault SDK assemblies
 - **Solution Items** — demo videos for navigation samples (`Vault-API-Sample-NavigateToVaultExplorer.mp4`, `Vault-API-Sample-NavigateToThinClient.mp4`)
 

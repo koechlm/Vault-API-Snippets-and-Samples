@@ -716,9 +716,62 @@ Autodesk.DataManagement.Client.Framework.Forms.Library.ApplicationConfiguration.
     new CustomHelpProvider();
 ```
 
-### 2. Thin Client Links
+### 2. Vault Explorer Navigation (`.acr` Files)
 
-Generate URLs to open entities in Thin Client:
+Vault Explorer (thick client) navigation uses **`.acr`** files: small XML documents in the `ADM` format that tell `Connectivity.VaultPro.exe` which server, vault, and entity to select. The sample `Vault-API-Sample-NavigateToVaultExplorer` builds these files from the `DataCommandRequest.acr` template (same schema as email and server-generated links).
+
+**Two ways to trigger navigation:**
+
+1. **Server / browser link** — URLs such as `EntityDataCommandRequest.aspx` (printed by the Explorer navigation sample) download an `.acr` file. If the browser is set to open downloads automatically, Windows uses the **registered handler** for the `.acr` extension.
+2. **Programmatic** — Your code writes an `.acr` file and opens it. The navigation sample uses **shell execute** on the file path so Windows applies the same handler as double-click or browser auto-open (see the sample source for the previous direct `Process.Start(exe, path)` approach, which may start a new Vault process every time).
+
+**Windows file association (required for browser links and recommended for apps):**
+
+```text
+HKEY_CLASSES_ROOT\.acr
+  (Default) = ACR_auto_file
+
+HKEY_CLASSES_ROOT\ACR_auto_file\shell\open\command
+  (Default) = "C:\Program Files\Autodesk\Vault Client 20XX\Explorer\Connectivity.VaultPro.exe" "%1"
+```
+
+Replace `20XX` with your installed Vault client year and path. A merge-ready template with instructions is in `Vault-API-C#-Samples/Navigation/Vault-Explorer-AcrFileAssociation.template.reg`.
+
+**Without administrator rights:** Right-click any `.acr` file → **Open with** → select the correct **Autodesk Vault** client → enable **Always use this app to open .acr files**.
+
+**When association is correct:** Opening an `.acr` file typically launches Vault Explorer (if needed) and navigates to the entity; an already running Explorer session is often reused instead of opening another instance. Wrong or missing registration causes errors such as “no app associated with this file,” the wrong Vault version opening, or **a new Vault window for every link**.
+
+**Optional fallback key** (if `ACR_auto_file` is correct but behavior is still wrong on some machines):
+
+```text
+HKEY_CLASSES_ROOT\Applications\Connectivity.VaultPro.exe\shell\open\command
+  (Default) = "C:\Program Files\Autodesk\Vault Client 20XX\Explorer\Connectivity.VaultPro.exe" "%1"
+```
+
+Per-user overrides may exist under `HKCU\Software\Classes\.acr`. Back up the registry before merging `.reg` files or editing keys manually.
+
+**Autodesk knowledge base:**
+
+- [How to open links from Vault in ACR format](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/Why-does-clicking-a-link-generated-from-Vault-download-a-acr-file.html)
+- [File link (.acr) opened in latest Vault version in a multi-version environment](https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/File-link-acr-file-is-always-opened-in-latest-Vault-version-in-a-multi-version-environment.html)
+
+**Open an `.acr` from C# using the registered handler:**
+
+```csharp
+using System.Diagnostics;
+
+Process.Start(new ProcessStartInfo
+{
+    FileName = acrFilePath,
+    UseShellExecute = true
+});
+```
+
+See also `Vault-API-C#-Samples/Navigation/README.md` and [Troubleshooting — Vault Explorer opens multiple instances](#6-each-vault-link-opens-a-new-vault-explorer-instance-or-acr-does-not-open-vault).
+
+### 3. Thin Client Links
+
+Generate URLs to open entities in the **Vault Thin Client** (web UI). Thin Client links use `AutodeskTC/...` URLs in the browser and **do not** download or use `.acr` files; only thick-client / Vault Explorer navigation relies on `.acr` association.
 
 **PowerShell:**
 ```powershell
@@ -745,7 +798,7 @@ $coLink = "$($serverUri.Scheme)://$($serverID.DataServer)/AutodeskTC/$($VaultNam
 Start-Process $coLink
 ```
 
-### 3. Vault and System Options
+### 4. Vault and System Options
 
 **Get/Set Vault Options:**
 ```csharp
@@ -956,6 +1009,25 @@ VDF.Vault.Currency.Entities.FileIteration fileIt =
 - Copy `Ijwhost.dll` to PowerShell installation folder
 - Use `Add-Type -Path` instead of `[Reflection.Assembly]::LoadFrom`
 
+#### 6. **Each Vault link opens a new Vault Explorer instance (or `.acr` does not open Vault)**
+
+**Symptoms:**
+- Clicking a Vault thick-client link in a browser downloads `.acr` and opens **another** Vault Explorer window each time
+- Message that no application is associated with `.acr`
+- Wrong Vault year opens when multiple clients are installed
+
+**Causes:**
+- `.acr` is not registered to `Connectivity.VaultPro.exe`, or a different program handles `.acr`
+- Multiple Vault versions competing for the same extension
+- Per-user file association under `HKCU\Software\Classes` overriding machine settings
+- Code that starts `Connectivity.VaultPro.exe` directly with an `.acr` path on every call (can spawn a new process even when association is correct)
+
+**Solution:**
+1. Verify or set file association as described in [Vault Explorer Navigation (`.acr` Files)](#2-vault-explorer-navigation-acr-files), or merge `Vault-API-C#-Samples/Navigation/Vault-Explorer-AcrFileAssociation.template.reg` (edit the Vault client path first).
+2. As a standard user: right-click an `.acr` file → **Open with** → select the intended Vault client → **Always use this app**.
+3. If problems persist, check `HKEY_CLASSES_ROOT\Applications\Connectivity.VaultPro.exe\shell\open\command`.
+4. In custom code, prefer opening the `.acr` with `UseShellExecute = true` on the file path rather than `Process.Start(vaultProExe, acrPath)` unless you intentionally want a new process.
+
 ---
 
 ## Sample Code Structure
@@ -1025,6 +1097,8 @@ finally {
 - **Autodesk Platform Services:** https://aps.autodesk.com/
 
 ### Sample Code Repository
+Navigation samples include `Vault-API-C#-Samples/Navigation/README.md` and `Vault-Explorer-AcrFileAssociation.template.reg` for Vault Explorer (`.acr`) file association.
+
 Your current repository contains comprehensive samples covering:
 - File operations
 - Item management

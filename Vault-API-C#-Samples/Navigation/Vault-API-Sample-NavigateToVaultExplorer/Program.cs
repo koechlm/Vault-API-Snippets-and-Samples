@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.IO;
 using System.Xml.Linq;
 
 using ACW = Autodesk.Connectivity.WebServices;
@@ -17,7 +18,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
 {
     class Program
     {
-        // Constant for Vault Explorer executable path
+        // Used only by the commented direct Process.Start approach below. Prefer OpenAcrFileViaShellAssociation
+        // so Windows uses the registered .acr handler (see Developer Guide and Navigation/README.md).
         private const string VAULT_EXPLORER_PATH = @"C:\Program Files\Autodesk\Vault Client 2026\Explorer\Connectivity.VaultPro.exe";
 
         static void Main(string[] args)
@@ -77,7 +79,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                     }
                     else
                     {
-                        // build the URL to navigate using a browser
+                        // Browser link: downloads an .acr file; auto-open requires .acr registered to Connectivity.VaultPro.exe
+                        // (see Vault-Explorer-AcrFileAssociation.template.reg and Developer Guide).
                         string folderUrl = $"http://{server}/AutodeskDM/Services/EntityDataCommandRequest.aspx?Vault={Uri.EscapeDataString(vaultName)}&ObjectId={Uri.EscapeDataString(folderFullName)}&ObjectType=Folder&Command=Select";
                         Console.WriteLine($"Folder URL: {folderUrl}");
 
@@ -89,8 +92,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                         {
                             Console.WriteLine($"Created ACR file: {outputPath}");
 
-                            // Start Vault Explorer with the ACR file to navigate to the folder
-                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, outputPath);
+                            // System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, outputPath);
+                            OpenAcrFileViaShellAssociation(outputPath);
 
                             Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
                             Console.ReadLine();
@@ -137,7 +140,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                         {
                             Console.WriteLine($"Created ACR file for file: {fileOutputPath}");
 
-                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, fileOutputPath);
+                            // System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, fileOutputPath);
+                            OpenAcrFileViaShellAssociation(fileOutputPath);
 
                             Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
                             Console.ReadLine();
@@ -172,7 +176,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                             {
                                 Console.WriteLine($"Created ACR file for item: {itemOutputPath}");
 
-                                System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, itemOutputPath);
+                                // System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, itemOutputPath);
+                                OpenAcrFileViaShellAssociation(itemOutputPath);
 
                                 Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
                                 Console.ReadLine();
@@ -212,7 +217,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                             {
                                 Console.WriteLine($"Created ACR file for change order: {ecoOutputPath}");
 
-                                System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, ecoOutputPath);
+                                // System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, ecoOutputPath);
+                                OpenAcrFileViaShellAssociation(ecoOutputPath);
 
                                 Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
                                 Console.ReadLine();
@@ -267,7 +273,8 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                         {
                             Console.WriteLine($"Created ACR file for custom entity: {custentOutputPath}");
 
-                            System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, custentOutputPath);
+                            // System.Diagnostics.Process.Start(VAULT_EXPLORER_PATH, custentOutputPath);
+                            OpenAcrFileViaShellAssociation(custentOutputPath);
 
                             Console.WriteLine("Check your Vault Explorer application and review the navigation result. Press Enter once you are done...");
                             Console.ReadLine();
@@ -295,6 +302,22 @@ namespace Vault_API_Sample_NavigateToVaultExplorer
                 Console.ReadKey();
             }
             #endregion connect to Vault
+        }
+
+        /// <summary>
+        /// Opens an .acr file through the Windows shell so the registered handler (Connectivity.VaultPro.exe) runs.
+        /// </summary>
+        private static void OpenAcrFileViaShellAssociation(string acrPath)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = acrPath,
+                UseShellExecute = true
+            });
+
+            // Direct launch alternatives (commented; may start a new Vault Explorer process each call):
+            // Process.Start(VAULT_EXPLORER_PATH, acrPath);
+            // Process.Start(VAULT_EXPLORER_PATH, "/acr \"" + acrPath + "\"");
         }
 
         /// <summary>
